@@ -245,9 +245,9 @@ public class PairService {
                     if (pair.getDate().isBefore(LocalDate.now())) {
                         return Mono.error(new ResponseStatusException(HttpStatus.BAD_REQUEST, "Нельзя удалить прошедшую пару"));
                     }
-                    if (pair.getIsActive()) {
-                        return Mono.error(new ResponseStatusException(HttpStatus.BAD_REQUEST, "Пара уже утверждена, ее нельзя удалить"));
-                    }
+//                    if (pair.getIsActive()) {
+//                        return Mono.error(new ResponseStatusException(HttpStatus.BAD_REQUEST, "Пара уже утверждена, ее нельзя удалить"));
+//                    }
                     return pairRepository.deleteById(uuid);
                 });
     }

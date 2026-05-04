@@ -180,15 +180,15 @@
 #schedule-page .lock-overlay .dots span:nth-child(3){ animation-delay: .4s; }
 
 /* ----- Маркер неутверждённой пары (жёлтая точка) ----- */
-#schedule-page td.schedule-cell.unapproved::before {
+#schedule-page td.lesson-cell.unapproved::before {
   content: '';
   position: absolute;
-  top: 4px;
-  left: 4px;
+  bottom: 4px;
+  right: 4px;
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: rgba(255, 193, 7, 0.7);
+  background: rgba(37, 99, 235, 0.75);
   z-index: 5;
   pointer-events: none;
 }
