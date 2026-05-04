@@ -268,3 +268,11 @@
   max-height: 100px;
   overflow-y: auto;
 }
+
+/* Фикс чекбоксов в модалке — чтобы не превращались в точки */
+#pair-groups-list .form-check-input {
+  width: 1em;
+  height: 1em;
+  margin-top: .25em;
+  appearance: auto;
+}

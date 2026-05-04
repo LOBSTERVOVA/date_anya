@@ -87,35 +87,51 @@ public class PairService {
 //        return pairRepository.findByDateAndPairOrder(date, pairOrder);
 //    }
 
-    /// Создание пары с проверками:
-    /// - преподаватели не заняты в это время
-    /// - группы не заняты в это время
-    /// - аудитория не занята (если указана)
+    /// Сохранение пары (создание или редактирование):
+    /// - если uuid отсутствует — создание новой пары
+    /// - если uuid передан — редактирование существующей
+    /// Проверки:
+    /// - преподаватели не заняты в это время (кроме самой редактируемой пары)
+    /// - группы не заняты в это время (кроме самой редактируемой пары)
+    /// - аудитория не занята (если указана, кроме самой редактируемой пары)
     /// - все преподаватели и предмет относятся к одной кафедре
-    public Mono<PairDto> createPair(Pair pair) {
-        if (pair.getDate() == null) {
-            return Mono.error(new ResponseStatusException(HttpStatus.BAD_REQUEST, "Дата пары обязательна"));
-        }
-        if (pair.getDate().isBefore(LocalDate.now())) {
-            return Mono.error(new ResponseStatusException(HttpStatus.BAD_REQUEST, "Нельзя ставить пару задним числом"));
-        }
-        if (pair.getSubjectUuid() == null) {
-            return Mono.error(new ResponseStatusException(HttpStatus.BAD_REQUEST, "Предмет обязателен"));
-        }
-        if (pair.getLecturerUuids().isEmpty()) {
-            return Mono.error(new ResponseStatusException(HttpStatus.BAD_REQUEST, "Укажите хотя бы одного преподавателя"));
+    public Mono<PairDto> savePair(Pair pair) {
+        boolean isUpdate = pair.getUuid() != null;
+
+        // При создании: базовая валидация сразу
+        // При редактировании: сначала проверим существование
+        Mono<Pair> pairMono;
+        if (isUpdate) {
+            pairMono = pairRepository.findById(pair.getUuid())
+                    .switchIfEmpty(Mono.error(new ResponseStatusException(
+                            HttpStatus.NOT_FOUND, "Пара с uuid " + pair.getUuid() + " не найдена")))
+                    .map(existing -> pair); // просто подтверждаем существование
+        } else {
+            pairMono = Mono.just(pair);
         }
 
-        return subjectRepository.findById(pair.getSubjectUuid())
-                .switchIfEmpty(Mono.error(new ResponseStatusException(HttpStatus.BAD_REQUEST, "Предмет не найден")))
-                .flatMap(subject -> {
-                    UUID departmentUuid = subject.getDepartmentUuid();
+        return pairMono.flatMap(p -> {
+            if (p.getDate() == null) {
+                return Mono.error(new ResponseStatusException(HttpStatus.BAD_REQUEST, "Дата пары обязательна"));
+            }
+            if (p.getDate().isBefore(LocalDate.now())) {
+                return Mono.error(new ResponseStatusException(HttpStatus.BAD_REQUEST, "Нельзя ставить пару задним числом"));
+            }
+            if (p.getSubjectUuid() == null) {
+                return Mono.error(new ResponseStatusException(HttpStatus.BAD_REQUEST, "Предмет обязателен"));
+            }
+            if (p.getLecturerUuids() == null || p.getLecturerUuids().isEmpty()) {
+                return Mono.error(new ResponseStatusException(HttpStatus.BAD_REQUEST, "Укажите хотя бы одного преподавателя"));
+            }
 
-                    // Загружаем преподавателей и проверяем кафедру
-                    Mono<java.util.List<Lecturer>> lecturersMono;
-                    Set<UUID> lecturerUuids = pair.getLecturerUuids() != null ? pair.getLecturerUuids() : new HashSet<>();
-                    if (!lecturerUuids.isEmpty()) {
-                        lecturersMono = Flux.fromIterable(lecturerUuids)
+            return subjectRepository.findById(p.getSubjectUuid())
+                    .switchIfEmpty(Mono.error(new ResponseStatusException(HttpStatus.BAD_REQUEST, "Предмет не найден")))
+                    .flatMap(subject -> {
+                        UUID departmentUuid = subject.getDepartmentUuid();
+                        Set<UUID> lecturerUuids = p.getLecturerUuids();
+
+                        // Загружаем преподавателей и проверяем кафедру
+                        Mono<java.util.List<Lecturer>> lecturersMono = Flux.fromIterable(lecturerUuids)
                                 .flatMap(lecturerRepository::findById)
                                 .collectList()
                                 .flatMap(lecturers -> {
@@ -129,16 +145,19 @@ public class PairService {
                                     }
                                     return Mono.just(lecturers);
                                 });
-                    } else {
-                        lecturersMono = Mono.just(new ArrayList<>());
-                    }
 
-                    return lecturersMono.flatMap(lecturers ->
-                            pairRepository.findByDateAndPairOrder(pair.getDate(), pair.getPairOrder())
-                                    .collectList()
-                                    .flatMap(existingPairs -> {
-                                        // Проверка: преподаватели не заняты
-                                        if (!lecturerUuids.isEmpty()) {
+                        return lecturersMono.flatMap(lecturers ->
+                                pairRepository.findByDateAndPairOrder(p.getDate(), p.getPairOrder())
+                                        .collectList()
+                                        .flatMap(allPairs -> {
+                                            // При редактировании исключаем саму редактируемую пару из проверок конфликтов
+                                            List<Pair> existingPairs = allPairs.stream()
+                                                    .filter(existing -> isUpdate
+                                                            ? !existing.getUuid().equals(p.getUuid())
+                                                            : true)
+                                                    .collect(Collectors.toList());
+
+                                            // Проверка: преподаватели не заняты
                                             Set<UUID> busyLecturers = new HashSet<>();
                                             for (Pair existing : existingPairs) {
                                                 Set<UUID> existingLecs = existing.getLecturerUuids();
@@ -163,55 +182,72 @@ public class PairService {
                                                                     "Преподаватели заняты в это время: " + names));
                                                         });
                                             }
-                                        }
 
-                                        // Проверка: группы не заняты
-                                        Set<UUID> groupUuids = pair.getGroupUuids() != null ? pair.getGroupUuids() : new HashSet<>();
-                                        if (!groupUuids.isEmpty()) {
-                                            Set<UUID> busyGroups = new HashSet<>();
-                                            for (Pair existing : existingPairs) {
-                                                Set<UUID> existingGrps = existing.getGroupUuids();
-                                                if (existingGrps != null) {
-                                                    for (UUID grUuid : groupUuids) {
-                                                        if (existingGrps.contains(grUuid)) {
-                                                            busyGroups.add(grUuid);
+                                            // Проверка: группы не заняты
+                                            Set<UUID> groupUuids = p.getGroupUuids() != null ? p.getGroupUuids() : new HashSet<>();
+                                            if (!groupUuids.isEmpty()) {
+                                                Set<UUID> busyGroups = new HashSet<>();
+                                                for (Pair existing : existingPairs) {
+                                                    Set<UUID> existingGrps = existing.getGroupUuids();
+                                                    if (existingGrps != null) {
+                                                        for (UUID grUuid : groupUuids) {
+                                                            if (existingGrps.contains(grUuid)) {
+                                                                busyGroups.add(grUuid);
+                                                            }
                                                         }
                                                     }
                                                 }
-                                            }
-                                            if (!busyGroups.isEmpty()) {
-                                                return Flux.fromIterable(busyGroups)
-                                                        .flatMap(groupRepository::findById)
-                                                        .collectList()
-                                                        .flatMap(busyGrps -> {
-                                                            String names = busyGrps.stream()
-                                                                    .map(Group::getGroupName)
-                                                                    .collect(Collectors.joining(", "));
-                                                            return Mono.error(new ResponseStatusException(
-                                                                    HttpStatus.CONFLICT,
-                                                                    "Группы заняты в это время: " + names));
-                                                        });
-                                            }
-                                        }
-
-                                        // Проверка: аудитория не занята
-                                        if (pair.getRoomUuid() != null) {
-                                            for (Pair existing : existingPairs) {
-                                                if (pair.getRoomUuid().equals(existing.getRoomUuid())) {
-                                                    return roomRepository.findById(pair.getRoomUuid())
-                                                            .flatMap(room -> Mono.error(new ResponseStatusException(
-                                                                    HttpStatus.CONFLICT,
-                                                                    "Аудитория занята в это время: " + room.getTitle())));
+                                                if (!busyGroups.isEmpty()) {
+                                                    return Flux.fromIterable(busyGroups)
+                                                            .flatMap(groupRepository::findById)
+                                                            .collectList()
+                                                            .flatMap(busyGrps -> {
+                                                                String names = busyGrps.stream()
+                                                                        .map(Group::getGroupName)
+                                                                        .collect(Collectors.joining(", "));
+                                                                return Mono.error(new ResponseStatusException(
+                                                                        HttpStatus.CONFLICT,
+                                                                        "Группы заняты в это время: " + names));
+                                                            });
                                                 }
                                             }
-                                        }
 
-                                        // Все проверки пройдены — сохраняем
-                                        pair.setIsActive(false);
-                                        return pairRepository.save(pair)
-                                                .flatMap(this::convertPairToPairDto);
-                                    })
-                    );
+                                            // Проверка: аудитория не занята
+                                            if (p.getRoomUuid() != null) {
+                                                for (Pair existing : existingPairs) {
+                                                    if (p.getRoomUuid().equals(existing.getRoomUuid())) {
+                                                        return roomRepository.findById(p.getRoomUuid())
+                                                                .flatMap(room -> Mono.error(new ResponseStatusException(
+                                                                        HttpStatus.CONFLICT,
+                                                                        "Аудитория занята в это время: " + room.getTitle())));
+                                                    }
+                                                }
+                                            }
+
+                                            // Все проверки пройдены — сохраняем
+                                            if (!isUpdate) {
+                                                p.setIsActive(false);
+                                            }
+                                            return pairRepository.save(p)
+                                                    .flatMap(this::convertPairToPairDto);
+                                        })
+                        );
+                    });
+        });
+    }
+
+    /// Удаление пары. Нельзя удалить пару с прошедшей датой.
+    public Mono<Void> deletePair(UUID uuid) {
+        return pairRepository.findById(uuid)
+                .switchIfEmpty(Mono.error(new ResponseStatusException(HttpStatus.NOT_FOUND, "Пара не найдена")))
+                .flatMap(pair -> {
+                    if (pair.getDate().isBefore(LocalDate.now())) {
+                        return Mono.error(new ResponseStatusException(HttpStatus.BAD_REQUEST, "Нельзя удалить прошедшую пару"));
+                    }
+                    if (pair.getIsActive()) {
+                        return Mono.error(new ResponseStatusException(HttpStatus.BAD_REQUEST, "Пара уже утверждена, ее нельзя удалить"));
+                    }
+                    return pairRepository.deleteById(uuid);
                 });
     }
 

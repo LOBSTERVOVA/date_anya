@@ -5,7 +5,7 @@ import {
     fetchGroups,
     fetchWeekPairsBatch
 } from "./api.js"
-import {showToast, getWeekStart, getWeekEnd, formatDateDDMM, formatLectFio, dateToIso} from "./utils.js";
+import {showToast, getWeekStart, getWeekEnd, formatDateDDMM, formatLectFio, formatEducationForm, dateToIso} from "./utils.js";
 
 let loadedDepartments = [];
 let loadedLecturers = [];
@@ -143,6 +143,7 @@ async function init() {
     // Загружаем все группы
     try {
         loadedGroups = await fetchGroups('');
+        window.allGroups = loadedGroups;
         console.log('Загружено групп:', loadedGroups);
         // Обновляем window.allGroups после загрузки
     } catch (e) {
@@ -217,6 +218,7 @@ async function init() {
 
         weekPairs = []
         weekPairs = await fetchWeekPairsBatch(dateToIso(weekStart));
+        window.weekPairs = weekPairs;
 
         const daysOfWeek = ['Воскресенье', 'Понедельник', 'Вторник', 'Среда',
             'Четверг', 'Пятница', 'Суббота'];
@@ -364,33 +366,140 @@ async function init() {
     // в кафедре модалки нет преподавателей по какой-то причине
     function setupPairModal(date, pairPosition, department, clickedLecturer, pair) {
         let subjects = department.subjects;
-        let selectedSubject = null;
-        let selectedRoom = null;
+        let selectedSubject = pair ? pair.subject : null;
+        let selectedRoom = pair ? pair.room : null;
         let selectedLecturers = pair ? loadedLecturers.filter(l => pair.lecturers.some(pl => pl.uuid === l.uuid)) : [clickedLecturer]
         let filteredLecturers = loadedLecturers.filter(l => l.department.uuid === department.uuid)
 
+        // Предзаполняем если редактируем
+        if (pair) {
+            $('#pair-name').val(pair.subject?.name || '');
+            if (pair.room) $('#pair-room-search').val(pair.room.title || pair.room.name || '');
+        } else {
+            $('#pair-name').val('');
+            $('#pair-room-search').val('');
+        }
+
+        // Кнопка удаления: показываем только при редактировании
+        const $delBtn = $('#pair-delete');
+        if (pair) {
+            $delBtn.show();
+        } else {
+            $delBtn.hide();
+        }
+        $delBtn.off('click').on('click', async function () {
+            if (!pair?.uuid) return;
+            try {
+                await $.ajax({ url: `/api/pair/${pair.uuid}`, type: 'DELETE' });
+                $('#pair-modal').modal('hide');
+                showToast('Пара удалена', 'success');
+                await renderTable();
+            } catch (e) {
+                const msg = e.responseJSON?.message || e.statusText || 'Ошибка удаления';
+                showToast(msg, 'danger');
+            }
+        });
+
         // инициализация предметов
         initModalSubjects('', subjects)
-        $('#pair-name').on('input', function () {
+        $('#pair-name').off('input').on('input', function () {
             initModalSubjects($(this).val(), subjects)
         })
 
         // инициализация комнат
         initModalRooms('');
-        $('#pair-room-search').on('input', function () {
+        $('#pair-room-search').off('input').on('input', function () {
             initModalRooms($(this).val())
         })
 
+        // инициализация преподавателей
         initModalLecturers('');
-        $('#lecturer-search').on('input', function () {
+        $('#lecturer-search').off('input').on('input', function () {
             initModalLecturers($(this).val())
         })
 
         // инициализация групп
         initModalGroups('');
-        $('#pair-groups-search').on('input', function () {
+        $('#pair-groups-search').off('input').on('input', function () {
             initModalGroups($(this).val())
         })
+
+        // Галочка «показывать занятые группы»
+        $('#show-busy-groups').off('change').on('change', function () {
+            initModalGroups($('#pair-groups-search').val() || '');
+        })
+
+        // Сохранение
+        $('#pair-save').off('click').on('click', async function () {
+            if (!selectedSubject) { showToast('Выберите предмет', 'warning'); return; }
+            if (!selectedLecturers.length) { showToast('Выберите минимум одного преподавателя', 'warning'); return; }
+
+            const roomUuid = selectedRoom?.uuid || null;
+            const lecturerUuids = selectedLecturers.map(l => l.uuid);
+            const groupUuids = [];
+            $('#pair-groups-list input[type="checkbox"]:checked').each(function () {
+                const uuid = $(this).closest('[data-group-uuid]').data('group-uuid');
+                if (uuid) groupUuids.push(uuid);
+            });
+
+            // Валидация по weekPairs (исключаем саму себя при редактировании)
+            const dateIso = dateToIso(date);
+            const busyLecs = new Set();
+            const busyGrps = new Set();
+            const busyRoomUuids = new Set();
+            weekPairs.forEach(p => {
+                if (p.date === dateIso && p.pairOrder === pairPosition && !(pair && p.uuid === pair.uuid)) {
+                    (p.lecturers || []).forEach(l => { if (l.uuid) busyLecs.add(l.uuid); });
+                    (p.groups || []).forEach(g => { if (g.uuid) busyGrps.add(g.uuid); });
+                    if (p.room?.uuid) busyRoomUuids.add(p.room.uuid);
+                }
+            });
+
+            const conflictLec = lecturerUuids.find(u => busyLecs.has(u));
+            if (conflictLec) {
+                const l = loadedLecturers.find(ll => ll.uuid === conflictLec);
+                showToast(`Преподаватель занят: ${l ? l.lastName + ' ' + l.firstName : conflictLec}`, 'danger');
+                return;
+            }
+
+            const conflictGrp = groupUuids.find(u => busyGrps.has(u));
+            if (conflictGrp) {
+                const g = loadedGroups.find(gg => gg.uuid === conflictGrp);
+                showToast(`Группа занята: ${g ? g.groupName : conflictGrp}`, 'danger');
+                return;
+            }
+
+            if (roomUuid && busyRoomUuids.has(roomUuid)) {
+                showToast(`Аудитория занята: ${selectedRoom.title || selectedRoom.name}`, 'danger');
+                return;
+            }
+
+            // Отправляем
+            const payload = {
+                uuid: pair?.uuid || null,
+                subjectUuid: selectedSubject.uuid || selectedSubject.id,
+                pairOrder: pairPosition,
+                date: dateIso,
+                roomUuid,
+                lecturerUuids,
+                groupUuids
+            };
+
+            try {
+                await $.ajax({
+                    url: '/api/pair',
+                    type: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify(payload)
+                });
+                $('#pair-modal').modal('hide');
+                showToast('Пара сохранена', 'success');
+                await renderTable();
+            } catch (e) {
+                const msg = e.responseJSON?.message || e.statusText || 'Ошибка сохранения';
+                showToast(msg, 'danger');
+            }
+        });
 
 
         function initModalSubjects(q, subjects) {
@@ -406,7 +515,7 @@ async function init() {
             } else {
                 filteredSubjects.forEach(s => {
                     let $ddElement = $(`
-                        <a href="#" class="dropdown-item py-2 px-3 text-wrap border" 
+                        <a href="#" class="dropdown-item py-2 px-3 text-wrap border"
                            data-subject-id="${s.id || s.uuid}">
                             ${s.name}
                         </a>
@@ -425,8 +534,8 @@ async function init() {
             console.log('firstLoadedRoom: ')
             console.log(loadedRooms[0]);
             console.log(weekPairs[0]);
-            let freeRooms = weekPairs.length > 0 ? loadedRooms.filter(r => !weekPairs.some(p => p.room && p.room.uuid === r.uuid && p.date === dateToIso(date) && p.pairOrder === pairPosition)).filter(r => r.title.toLowerCase().includes(q.toLowerCase())) : loadedRooms;
-            let busyRooms = weekPairs.length > 0 ?loadedRooms.filter(r => weekPairs.some(p => p.room && p.room.uuid === r.uuid && p.date === dateToIso(date) && p.pairOrder === pairPosition)).filter(r => r.title.toLowerCase().includes(q.toLowerCase())) : [];
+            let freeRooms = weekPairs.length > 0 ? loadedRooms.filter(r => !weekPairs.some(p => p.room && p.room.uuid === r.uuid && p.date === dateToIso(date) && p.pairOrder === pairPosition && !(pair && p.uuid === pair.uuid))).filter(r => r.title.toLowerCase().includes(q.toLowerCase())) : loadedRooms;
+            let busyRooms = weekPairs.length > 0 ?loadedRooms.filter(r => weekPairs.some(p => p.room && p.room.uuid === r.uuid && p.date === dateToIso(date) && p.pairOrder === pairPosition && !(pair && p.uuid === pair.uuid))).filter(r => r.title.toLowerCase().includes(q.toLowerCase())) : [];
             console.log(`свободно комнат: ${freeRooms.length}; занято комнат: ${busyRooms.length}`)
             let $roomsDd = $('#pair-room-dropdown')
             $roomsDd.empty();
@@ -472,7 +581,7 @@ async function init() {
             })
 
             $('#lecturer-dropdown-list').empty()
-            filteredLecturers.filter(fl => !weekPairs.some(p => p.lecturers.some(pl => fl.uuid === pl.uuid && p.date === dateToIso(date) && p.pairOrder === pairPosition))).filter(l => !selectedLecturers.some(sl => sl.uuid === l.uuid)).filter(l => `${l.lastName} ${l.firstName} ${l.patronymic}`.toLowerCase().includes(q.toLowerCase())).forEach(l => {
+            filteredLecturers.filter(fl => !weekPairs.some(p => !(pair && p.uuid === pair.uuid) && p.lecturers.some(pl => fl.uuid === pl.uuid && p.date === dateToIso(date) && p.pairOrder === pairPosition))).filter(l => !selectedLecturers.some(sl => sl.uuid === l.uuid)).filter(l => `${l.lastName} ${l.firstName} ${l.patronymic}`.toLowerCase().includes(q.toLowerCase())).forEach(l => {
                 let $ddElement = $(`
                     <a href="#" class="dropdown-item py-2 px-3 text-wrap border">${l.lastName} ${l.firstName} ${l.patronymic}</a>
                 `);
@@ -486,50 +595,79 @@ async function init() {
         }
 
         function initModalGroups(q) {
-            const filteredLoadedGroups = loadedGroups.filter(g => `${g.course} курс ${formatEducationForm(g.educationForm)} ${g.faculty} ${g.direction} ${g.specialization} ${g.groupName}`.toLowerCase().includes(q.toLowerCase()));
-            let groupsByCourseAndForm = {};
+            const showBusy = $('#show-busy-groups').is(':checked');
 
-            filteredLoadedGroups.forEach(loadedGroup => {
-                const course = loadedGroup.course;
-                const educationForm = loadedGroup.educationForm; // 'FULL_TIME', 'PART_TIME', 'MIXED'
-
-                // Создаем объект для курса, если его нет
-                if (!groupsByCourseAndForm[course]) {
-                    groupsByCourseAndForm[course] = {};
+            // Занятые группы (UUID) в этот слот, исключая саму редактируемую пару
+            const busyUuids = new Set();
+            const dateIso = dateToIso(date);
+            weekPairs.forEach(p => {
+                if (p.date === dateIso && p.pairOrder === pairPosition && !(pair && p.uuid === pair.uuid)) {
+                    (p.groups || []).forEach(g => { if (g.uuid) busyUuids.add(g.uuid); });
                 }
-
-                // Создаем массив для формы обучения, если его нет
-                if (!groupsByCourseAndForm[course][educationForm]) {
-                    groupsByCourseAndForm[course][educationForm] = [];
-                }
-
-                // Добавляем группу
-                groupsByCourseAndForm[course][educationForm].push(loadedGroup);
             });
 
-            let $groupsContainer = $('#pair-groups-list')
-            ;$groupsContainer.empty();
-            for (let course in groupsByCourseAndForm) {
-                $groupsContainer.append(`<div>${course} курс</div>`)
-                if (groupsByCourseAndForm.hasOwnProperty(course)) {
-                    const forms = groupsByCourseAndForm[course];
+            const filteredLoadedGroups = loadedGroups.filter(g => {
+                const s = `${g.course} курс ${formatEducationForm(g.educationForm)} ${g.faculty} ${g.direction} ${g.specialization} ${g.groupName}`.toLowerCase();
+                return s.includes(q.toLowerCase());
+            });
 
-                    for (let formCode in forms) {
-                        $groupsContainer.append(`<div>.   ${formatEducationForm(formCode)}</div>`)
-                        if (forms.hasOwnProperty(formCode)) {
-                            // список групп на данной форме обучения и данном курсе
-                            const groups = forms[formCode];
-                            groups.forEach(g => {
-                                $groupsContainer.append(`<div>.       ${g.groupName}</div>`)
-                            })
-                            // Просто выводим formCode как есть
-                            console.log(`курс ${course} форма ${formCode} количество групп: ${groups.length}`);
-                            
-                        }
-                    }
-                }
+            let groupsByCourseAndForm = {};
+            let hasVisible = false;
+
+            filteredLoadedGroups.forEach(loadedGroup => {
+                const isBusy = busyUuids.has(loadedGroup.uuid);
+                if (isBusy && !showBusy) return; // скрываем занятые
+                hasVisible = true;
+
+                const course = loadedGroup.course;
+                const educationForm = loadedGroup.educationForm;
+
+                if (!groupsByCourseAndForm[course]) groupsByCourseAndForm[course] = {};
+                if (!groupsByCourseAndForm[course][educationForm]) groupsByCourseAndForm[course][educationForm] = [];
+                groupsByCourseAndForm[course][educationForm].push({ group: loadedGroup, isBusy });
+            });
+
+            let $groupsContainer = $('#pair-groups-list');
+            $groupsContainer.empty();
+
+            if (!hasVisible) {
+                $groupsContainer.html('<div class="text-muted">Нет групп для отображения</div>');
+                return;
             }
 
+            const sortedCourses = Object.keys(groupsByCourseAndForm).map(Number).sort((a, b) => a - b);
+            sortedCourses.forEach(course => {
+                $groupsContainer.append(`<div class="fw-bold text-primary mt-2">${course} курс</div>`);
+                const forms = groupsByCourseAndForm[course];
+                Object.keys(forms).sort().forEach(formCode => {
+                    $groupsContainer.append(`<div class="fw-semibold text-secondary ms-3">${formatEducationForm(formCode)}</div>`);
+                    const groups = forms[formCode];
+                    groups.sort((a, b) => (a.group.groupName || '').localeCompare(b.group.groupName || '', 'ru'));
+                    groups.forEach(({ group, isBusy }) => {
+                        if (isBusy) {
+                            $groupsContainer.append(`
+                                <div class="ms-5 text-muted ps-4 mb-1" style="opacity:0.5" data-group-uuid="${group.uuid}">
+                                    ${group.groupName} <span class="small">(занята)</span>
+                                </div>
+                            `);
+                        } else {
+                            $groupsContainer.append(`
+                                <div class="form-check ms-5" data-group-uuid="${group.uuid}">
+                                    <input class="form-check-input" type="checkbox" id="grp-${group.uuid}">
+                                    <label class="form-check-label" for="grp-${group.uuid}">${group.groupName}</label>
+                                </div>
+                            `);
+                        }
+                    });
+                });
+            });
+
+            // Отмечаем уже выбранные группы (если редактируем)
+            if (pair?.groups) {
+                pair.groups.forEach(g => {
+                    $(`#grp-${g.uuid}`).prop('checked', true);
+                });
+            }
         }
 
     }

@@ -6,10 +6,12 @@ import com.example.rusreact2.services.PairService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import java.time.LocalDate;
+import java.util.UUID;
 
 @Slf4j
 @RestController
@@ -27,10 +29,21 @@ public class PairController {
         return pairService.getWeekPairsBatch(from, to);
     }
 
+    /// Создание или редактирование пары:
+    /// - если uuid не передан — создание новой пары
+    /// - если uuid передан — редактирование существующей
     @PostMapping
-    public Mono<PairDto> createPair(@RequestBody Pair pair) {
-        log.info("createPair: date={}, pairOrder={}, subjectUuid={}", pair.getDate(), pair.getPairOrder(), pair.getSubjectUuid());
-        return pairService.createPair(pair);
+    public Mono<PairDto> savePair(@RequestBody Pair pair) {
+        log.info("savePair: uuid={}, date={}, pairOrder={}, subjectUuid={}",
+                pair.getUuid(), pair.getDate(), pair.getPairOrder(), pair.getSubjectUuid());
+        return pairService.savePair(pair);
+    }
+
+    @DeleteMapping("/{uuid}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public Mono<Void> deletePair(@PathVariable UUID uuid) {
+        log.info("deletePair: uuid={}", uuid);
+        return pairService.deletePair(uuid);
     }
 
 }
