@@ -3,9 +3,11 @@ import {
     fetchLecturers,
     fetchRooms,
     fetchGroups,
-    fetchWeekPairsBatch
+    fetchWeekPairsBatch,
+    exportScheduleExcel
 } from "./api.js"
 import {showToast, getWeekStart, getWeekEnd, formatDateDDMM, formatLectFio, formatEducationForm, dateToIso} from "./utils.js";
+import {startOfWeekMonday, endOfWeekSunday, dateIsoFor} from "./date.js";
 
 let loadedDepartments = [];
 let loadedLecturers = [];
@@ -206,8 +208,8 @@ async function init() {
     // // Инициализируем фиксированный ползунок прокрутки
     // initFixedScrollbar();
     //
-    // // Инициализируем экспорт расписания
-    // initExportSchedule();
+    // Инициализируем экспорт расписания
+    initExportSchedule();
     //
     // // Инициализируем импорт расписания
     // initImportSchedule();
@@ -845,3 +847,320 @@ async function init() {
 }
 
 document.addEventListener('DOMContentLoaded', init);
+
+// ========================== Export functions ==========================
+
+function formatDateLocal(date) {
+    if (!date) return '';
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+
+function toWeekStart(dateIso) {
+    const date = new Date(dateIso);
+    const monday = startOfWeekMonday(date);
+    return formatDateLocal(monday);
+}
+
+function toWeekEnd(dateIso) {
+    const date = new Date(dateIso);
+    const sunday = endOfWeekSunday(date);
+    return formatDateLocal(sunday);
+}
+
+function toggleExportModal(show) {
+    const el = document.getElementById('export-modal');
+    if (!el) return;
+
+    el.style.display = show ? 'block' : 'none';
+    el.classList.toggle('show', !!show);
+
+    if (show) {
+        el.style.background = 'rgba(0,0,0,0.5)';
+        el.style.position = 'fixed';
+        el.style.top = '0';
+        el.style.left = '0';
+        el.style.width = '100%';
+        el.style.height = '100%';
+        const dialog = el.querySelector('.modal-dialog');
+        if (dialog) {
+            dialog.style.marginTop = '5vh';
+            dialog.style.maxWidth = '90%';
+            dialog.style.width = '90%';
+            dialog.style.maxHeight = '85vh';
+        }
+        const groupsList = el.querySelector('#export-groups-list');
+        if (groupsList) {
+            groupsList.style.maxHeight = '50vh';
+            groupsList.style.overflowY = 'auto';
+        }
+    } else {
+        el.style.background = '';
+        const dialog = el.querySelector('.modal-dialog');
+        if (dialog) {
+            dialog.style.marginTop = '';
+            dialog.style.maxWidth = '';
+            dialog.style.width = '';
+            dialog.style.maxHeight = '';
+        }
+    }
+    try {
+        document.body.classList.remove('modal-open');
+        const backdrop = document.querySelector('.modal-backdrop');
+        if (backdrop) backdrop.remove();
+    } catch (_) {}
+}
+
+function buildExportGroupsList(selectedUuids) {
+    const listEl = document.getElementById('export-groups-list');
+    if (!listEl) return;
+
+    const selected = new Set(selectedUuids || []);
+    listEl.innerHTML = '';
+
+    const groups = loadedGroups;
+    if (!groups.length) {
+        listEl.innerHTML = '<div class="text-muted">Группы не загружены</div>';
+        return;
+    }
+
+    // Группируем по курсу и форме обучения (как в модалке создания пары)
+    const groupsByCourseAndForm = {};
+    groups.forEach(g => {
+        if (!g) return;
+        const course = g.course ?? 0;
+        const form = g.educationForm || 'FULL_TIME';
+        if (!groupsByCourseAndForm[course]) groupsByCourseAndForm[course] = {};
+        if (!groupsByCourseAndForm[course][form]) groupsByCourseAndForm[course][form] = [];
+        groupsByCourseAndForm[course][form].push(g);
+    });
+
+    const sortedCourses = Object.keys(groupsByCourseAndForm).map(Number).sort((a, b) => a - b);
+    sortedCourses.forEach(course => {
+        const courseDiv = document.createElement('div');
+        courseDiv.className = 'fw-bold text-primary mt-2';
+        courseDiv.textContent = `${course} курс`;
+        listEl.appendChild(courseDiv);
+
+        const forms = groupsByCourseAndForm[course];
+        Object.keys(forms).sort().forEach(formCode => {
+            const formDiv = document.createElement('div');
+            formDiv.className = 'fw-semibold text-secondary ms-3';
+            formDiv.textContent = formatEducationForm(formCode);
+            listEl.appendChild(formDiv);
+
+            const groupList = forms[formCode];
+            groupList.sort((a, b) => (a.groupName || '').localeCompare(b.groupName || '', 'ru'));
+            groupList.forEach(group => {
+                const item = document.createElement('div');
+                item.className = 'form-check ms-5 mb-1';
+                item.setAttribute('data-group-uuid', group.uuid);
+
+                const checkbox = document.createElement('input');
+                checkbox.className = 'form-check-input';
+                checkbox.type = 'checkbox';
+                checkbox.id = `export-group-${group.uuid}`;
+                checkbox.checked = selected.has(group.uuid);
+
+                const label = document.createElement('label');
+                label.className = 'form-check-label';
+                label.htmlFor = `export-group-${group.uuid}`;
+
+                // Формат как в модалке создания пары: <b>groupName</b> — specialization — kindsOfSports — direction
+                let labelText = `<b>${group.groupName || ''}</b>`;
+                if (group.specialization && group.specialization.length > 1) {
+                    labelText += ` — ${group.specialization}`;
+                }
+                if (group.kindsOfSports && group.kindsOfSports.length > 0) {
+                    labelText += ` — ${Array.from(group.kindsOfSports).join(', ')}`;
+                }
+                if (group.direction && group.direction.length > 1) {
+                    labelText += ` — ${group.direction}`;
+                }
+
+                label.innerHTML = labelText;
+
+                item.appendChild(checkbox);
+                item.appendChild(label);
+                listEl.appendChild(item);
+            });
+        });
+    });
+}
+
+function filterExportGroups(query) {
+    const listEl = document.getElementById('export-groups-list');
+    if (!listEl) return;
+
+    const q = (query || '').toLowerCase();
+    const groupItems = listEl.querySelectorAll('[data-group-uuid]');
+    groupItems.forEach(item => {
+        const text = item.textContent.toLowerCase();
+        item.style.display = !q || text.includes(q) ? '' : 'none';
+    });
+
+    // Управляем видимостью заголовков курсов и форм обучения
+    const allDivs = Array.from(listEl.children);
+    allDivs.forEach(div => {
+        if (div.classList.contains('fw-bold') || div.classList.contains('fw-semibold')) {
+            // Проверяем следующие элементы до следующего заголовка того же или выше уровня
+            let hasVisible = false;
+            let next = div.nextElementSibling;
+            while (next && !next.classList.contains('fw-bold')) {
+                if (next.hasAttribute('data-group-uuid') && next.style.display !== 'none') {
+                    hasVisible = true;
+                    break;
+                }
+                const inner = next.querySelectorAll?.('[data-group-uuid]');
+                if (inner) {
+                    for (const ig of inner) {
+                        if (ig.style.display !== 'none') { hasVisible = true; break; }
+                    }
+                    if (hasVisible) break;
+                }
+                next = next.nextElementSibling;
+            }
+            div.style.display = hasVisible || !q ? '' : 'none';
+        }
+    });
+}
+
+function getSelectedExportGroupUuids() {
+    const checkboxes = document.querySelectorAll('#export-groups-list input[type="checkbox"]:checked');
+    return Array.from(checkboxes).map(cb => cb.closest('[data-group-uuid]').getAttribute('data-group-uuid'));
+}
+
+function initExportSchedule() {
+    // Кнопка экспорта
+    const exportBtn = document.getElementById('export-schedule');
+    if (exportBtn) {
+        exportBtn.addEventListener('click', () => {
+            const from = document.getElementById('export-from');
+            const to = document.getElementById('export-to');
+
+            const today = new Date();
+            const monday = startOfWeekMonday(new Date(today));
+            const sunday = endOfWeekSunday(new Date(today));
+
+            if (from) from.value = formatDateLocal(monday);
+            if (to) to.value = formatDateLocal(sunday);
+
+            // Сбрасываем на режим «для студентов»
+            document.getElementById('export-mode-students').checked = true;
+            switchExportMode('students');
+
+            buildExportGroupsList(getSelectedExportGroupUuids());
+            toggleExportModal(true);
+        });
+    }
+
+    // Переключатель режима
+    document.querySelectorAll('input[name="export-mode"]').forEach(radio => {
+        radio.addEventListener('change', function () {
+            switchExportMode(this.value);
+        });
+    });
+
+    function switchExportMode(mode) {
+        const groupsWrap = document.getElementById('export-groups-wrap');
+        const groupsSearch = document.getElementById('export-groups-search');
+        const deptWrap = document.getElementById('export-department-wrap');
+        const hint = document.getElementById('export-hint');
+
+        if (mode === 'lecturers') {
+            if (groupsWrap) groupsWrap.style.display = 'none';
+            if (groupsSearch) groupsSearch.style.display = 'none';
+            if (deptWrap) deptWrap.style.display = '';
+            if (hint) hint.textContent = 'Будет выгружено расписание для преподавателей выбранной кафедры.';
+            populateDepartmentDropdown();
+        } else {
+            if (groupsWrap) groupsWrap.style.display = '';
+            if (groupsSearch) groupsSearch.style.display = '';
+            if (deptWrap) deptWrap.style.display = 'none';
+            if (hint) hint.textContent = 'Будет выгружено расписание для выбранных групп за указанный период.';
+        }
+    }
+
+    function populateDepartmentDropdown() {
+        const sel = document.getElementById('export-department');
+        if (!sel) return;
+        sel.innerHTML = '<option value="">-- Выберите кафедру --</option>';
+        loadedDepartments.forEach(dept => {
+            const opt = document.createElement('option');
+            opt.value = dept.uuid;
+            opt.textContent = dept.name || dept.uuid;
+            sel.appendChild(opt);
+        });
+    }
+
+    // Поиск групп
+    const searchInput = document.getElementById('export-groups-search');
+    if (searchInput) {
+        let searchTimeout;
+        searchInput.addEventListener('input', (e) => {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => filterExportGroups(e.target.value), 300);
+        });
+    }
+
+    // Кнопки модалки
+    const exportClose = document.getElementById('export-close');
+    const exportCancel = document.getElementById('export-cancel');
+    const exportConfirm = document.getElementById('export-confirm');
+
+    if (exportClose) exportClose.addEventListener('click', () => toggleExportModal(false));
+    if (exportCancel) exportCancel.addEventListener('click', () => toggleExportModal(false));
+
+    if (exportConfirm) {
+        exportConfirm.addEventListener('click', async () => {
+            const from = document.getElementById('export-from');
+            const to = document.getElementById('export-to');
+            const fromIso = from && from.value ? from.value : dateIsoFor(new Date());
+            const toIso = to && to.value ? to.value : dateIsoFor(new Date());
+
+            if (!fromIso || !toIso) {
+                showToast('Укажите период экспорта', 'warning', 'Ошибка');
+                return;
+            }
+
+            const mode = document.querySelector('input[name="export-mode"]:checked')?.value || 'students';
+            let payload = { from: toWeekStart(fromIso), to: toWeekEnd(toIso) };
+
+            if (mode === 'lecturers') {
+                const deptSel = document.getElementById('export-department');
+                const deptUuid = deptSel?.value;
+                if (!deptUuid) {
+                    showToast('Выберите кафедру для экспорта', 'warning', 'Ошибка');
+                    return;
+                }
+                payload.departmentUuid = deptUuid;
+            } else {
+                const groupUuids = getSelectedExportGroupUuids();
+                if (!groupUuids.length) {
+                    showToast('Выберите хотя бы одну группу для экспорта', 'warning', 'Ошибка');
+                    return;
+                }
+                payload.groups = groupUuids;
+            }
+
+            try {
+                const { blob, filename } = await exportScheduleExcel(payload);
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename || 'schedule.xlsx';
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                URL.revokeObjectURL(url);
+                toggleExportModal(false);
+                showToast('Экспорт выполнен', 'success', 'Успех');
+            } catch (e) {
+                console.error('Export failed', e);
+                showToast('Не удалось экспортировать расписание', 'danger', 'Ошибка');
+            }
+        });
+    }
+}

@@ -344,11 +344,23 @@
   <div class="modal-dialog">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title">Экспорт расписания: период</h5>
+        <h5 class="modal-title">Экспорт расписания</h5>
         <button type="button" class="btn-close" id="export-close" aria-label="Close"></button>
       </div>
       <div class="modal-body">
-        <div class="row g-3">
+        <!-- Переключатель режима -->
+        <div class="mb-3">
+          <div class="form-check form-check-inline">
+            <input class="form-check-input" type="radio" name="export-mode" id="export-mode-students" value="students" checked />
+            <label class="form-check-label" for="export-mode-students">Для студентов</label>
+          </div>
+          <div class="form-check form-check-inline">
+            <input class="form-check-input" type="radio" name="export-mode" id="export-mode-lecturers" value="lecturers" />
+            <label class="form-check-label" for="export-mode-lecturers">Для преподавателей</label>
+          </div>
+        </div>
+        <!-- Выбор периода -->
+        <div class="row g-3 mb-3">
           <div class="col-12 col-md-6">
             <label class="form-label" for="export-from">С даты</label>
             <input type="date" class="form-control" id="export-from" />
@@ -358,6 +370,12 @@
             <input type="date" class="form-control" id="export-to" />
           </div>
         </div>
+        <!-- Выбор кафедры (для преподавателей) -->
+        <div id="export-department-wrap" class="mb-3" style="display:none;">
+          <label class="form-label" for="export-department">Кафедра</label>
+          <select class="form-select" id="export-department"></select>
+        </div>
+        <!-- Выбор групп (для студентов) -->
         <div id="export-groups-wrap">
           <label class="form-label">Группы</label>
           <div class="position-relative mb-2">
@@ -366,7 +384,7 @@
           <div id="export-groups-list" class="border rounded p-2" style="max-height: 200px; overflow-y: auto;"></div>
           <div class="form-text">Выберите группы для экспорта.</div>
         </div>
-        <div class="form-text mt-2">Будет выгружено расписание для выбранных групп за указанный период.</div>
+        <div id="export-hint" class="form-text mt-2">Будет выгружено расписание для выбранных групп за указанный период.</div>
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" id="export-cancel">Отмена</button>

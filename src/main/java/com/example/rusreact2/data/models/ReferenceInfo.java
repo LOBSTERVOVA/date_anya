@@ -36,7 +36,9 @@ public class ReferenceInfo {
     private String annotation;
 
     // Ranges (month-day only, without year) when this reference is especially relevant
-    private List<UUID> actualDates;
+    // Managed via MonthDayRangeRepository; not a column in reference_info
+    @Transient
+    private List<MonthDayRange> actualDates;
 
     @Column(value = "created_at")
     private LocalDateTime createdAt;

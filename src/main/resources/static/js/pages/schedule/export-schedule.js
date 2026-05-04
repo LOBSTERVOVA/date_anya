@@ -101,123 +101,58 @@ function translateEducationForm(form) {
 }
 
 /**
- * Строит список групп для экспорта
+ * Строит список групп для экспорта (в стиле модалки создания пары)
  * @param {Array} selectedUuids - массив выбранных UUID групп
  */
 export function buildExportGroupsList(selectedUuids) {
-  console.log('buildExportGroupsList START');
-  console.log('Selected UUIDs:', selectedUuids);
-  console.log('window.allGroups:', window.allGroups);
-  console.log('allGroups length:', window.allGroups?.length);
-
   const listEl = document.getElementById('export-groups-list');
-  if (!listEl) {
-    console.error('export-groups-list element not found');
-    return;
-  }
-  
+  if (!listEl) return;
+
   const selected = new Set(selectedUuids || []);
   listEl.innerHTML = '';
 
-  // Проверяем, что группы загружены
   const groups = window.allGroups || [];
   if (!groups.length) {
-    console.warn('No groups loaded, trying to get from global scope');
-    // Попробуем получить из другого источника
     if (typeof allGroups !== 'undefined') {
       groups.push(...allGroups);
     }
   }
-
-  console.log('Final groups array:', groups);
 
   if (!groups.length) {
     listEl.innerHTML = '<div class="text-muted">Группы не загружены</div>';
     return;
   }
 
-  let baseCourse = null;
-  let baseForm = null;
-  let baseFaculty = null;
-
-  if (selected.size > 0) {
-    const firstUuid = Array.from(selected)[0];
-    const g0 = groups.find(g => g && g.uuid === firstUuid);
-    if (g0) {
-      baseCourse = g0.course ?? null;
-      baseForm = g0.educationForm || null;
-      baseFaculty = g0.faculty || null;
-    }
-  }
-
-  const groupsByCourse = {};
-
-  // Группируем группы по курсу и форме обучения
-  groups.forEach(group => {
-    if (!group) return;
-    const course = group.course ?? 'unknown';
-    const form = group.educationForm || 'unknown';
-    const key = `${course}-${form}`;
-    if (!groupsByCourse[key]) groupsByCourse[key] = [];
-    groupsByCourse[key].push(group);
+  // Группируем по курсу и форме обучения
+  const groupsByCourseAndForm = {};
+  groups.forEach(g => {
+    if (!g) return;
+    const course = g.course ?? 0;
+    const form = g.educationForm || 'FULL_TIME';
+    if (!groupsByCourseAndForm[course]) groupsByCourseAndForm[course] = {};
+    if (!groupsByCourseAndForm[course][form]) groupsByCourseAndForm[course][form] = [];
+    groupsByCourseAndForm[course][form].push(g);
   });
 
-  console.log('Groups by course:', groupsByCourse);
+  const sortedCourses = Object.keys(groupsByCourseAndForm).map(Number).sort((a, b) => a - b);
+  sortedCourses.forEach(course => {
+    const courseDiv = document.createElement('div');
+    courseDiv.className = 'fw-bold text-primary mt-2';
+    courseDiv.textContent = `${course} курс`;
+    listEl.appendChild(courseDiv);
 
-  // Сортируем курсы
-  const sortedKeys = Object.keys(groupsByCourse).sort((a, b) => {
-    const [aCourse] = a.split('-').map(Number);
-    const [bCourse] = b.split('-').map(Number);
-    return aCourse - bCourse;
-  });
+    const forms = groupsByCourseAndForm[course];
+    Object.keys(forms).sort().forEach(formCode => {
+      const formDiv = document.createElement('div');
+      formDiv.className = 'fw-semibold text-secondary ms-3';
+      formDiv.textContent = translateEducationForm(formCode);
+      listEl.appendChild(formDiv);
 
-  console.log('Sorted keys:', sortedKeys);
-
-  sortedKeys.forEach(key => {
-    const [courseStr, form] = key.split('-');
-    const course = Number(courseStr);
-    const courseGroups = groupsByCourse[key];
-
-    // Группируем по факультетам
-    const groupsByFaculty = {};
-    courseGroups.forEach(group => {
-      const faculty = group.faculty || 'Без факультета';
-      if (!groupsByFaculty[faculty]) groupsByFaculty[faculty] = [];
-      groupsByFaculty[faculty].push(group);
-    });
-
-    // Создаем заголовок курса
-    const courseHeader = document.createElement('div');
-    courseHeader.className = 'fw-bold text-primary mb-2';
-    courseHeader.textContent = `Курс ${course}:`;
-    listEl.appendChild(courseHeader);
-
-    // Создаем заголовок формы обучения
-    const formHeader = document.createElement('div');
-    formHeader.className = 'text-muted mb-3 ms-3';
-    formHeader.textContent = `Форма: ${translateEducationForm(form)}`;
-    listEl.appendChild(formHeader);
-
-    // Отображаем группы по факультетам
-    Object.keys(groupsByFaculty).forEach(faculty => {
-      const facultyGroups = groupsByFaculty[faculty];
-      
-      // Заголовок факультета
-      const facultyHeader = document.createElement('div');
-      facultyHeader.className = 'fw-semibold text-secondary mb-2 ms-4';
-      facultyHeader.textContent = `Факультет: ${faculty}`;
-      listEl.appendChild(facultyHeader);
-
-      // Контейнер для групп факультета
-      const facultyContainer = document.createElement('div');
-      facultyContainer.className = 'mb-4 ms-5';
-
-      facultyGroups.forEach(group => {
-        // Отладка - смотрим структуру группы
-        console.log('Group structure:', group);
-        
+      const groupList = forms[formCode];
+      groupList.sort((a, b) => (a.groupName || '').localeCompare(b.groupName || '', 'ru'));
+      groupList.forEach(group => {
         const item = document.createElement('div');
-        item.className = 'form-check mb-2';
+        item.className = 'form-check ms-5 mb-1';
         item.setAttribute('data-group-uuid', group.uuid);
 
         const checkbox = document.createElement('input');
@@ -227,42 +162,29 @@ export function buildExportGroupsList(selectedUuids) {
         checkbox.checked = selected.has(group.uuid);
 
         const label = document.createElement('label');
-        label.className = 'form-check-label d-block';
+        label.className = 'form-check-label';
         label.htmlFor = `export-group-${group.uuid}`;
-        
-        // Формируем полное название: "Код группы Направление. Полное название (форма)"
-        let displayName = '';
-        
-        // Код группы
-        if (group.groupName) {
-          displayName = group.groupName;
+
+        // Формат как в модалке создания пары: <b>groupName</b> — specialization — kindsOfSports — direction
+        let labelText = `<b>${group.groupName || ''}</b>`;
+        if (group.specialization && group.specialization.length > 1) {
+          labelText += ` — ${group.specialization}`;
         }
-        
-        // Специализация
-        if (group.specialization) {
-          displayName += ' ' + group.specialization;
+        if (group.kindsOfSports && group.kindsOfSports.length > 0) {
+          labelText += ` — ${Array.from(group.kindsOfSports).join(', ')}`;
         }
-        
-        // Полное название (если есть)
-        if (group.fullName) {
-          displayName += '. ' + group.fullName;
+        if (group.direction && group.direction.length > 1) {
+          labelText += ` — ${group.direction}`;
         }
-        
-        // Форма обучения в скобках
-        displayName += ` (${translateEducationForm(group.educationForm)})`;
-        
-        label.textContent = displayName;
+
+        label.innerHTML = labelText;
 
         item.appendChild(checkbox);
         item.appendChild(label);
-        facultyContainer.appendChild(item);
+        listEl.appendChild(item);
       });
-
-      listEl.appendChild(facultyContainer);
     });
   });
-
-  console.log('Groups list built successfully');
 }
 
 /**
@@ -270,56 +192,55 @@ export function buildExportGroupsList(selectedUuids) {
  * @param {string} query - поисковый запрос
  */
 export function filterExportGroups(query) {
-  console.log('filterExportGroups:', query);
-  
   const listEl = document.getElementById('export-groups-list');
   if (!listEl) return;
 
+  const q = (query || '').toLowerCase();
+
+  // Проходим по элементам групп и показываем/скрываем
   const groupItems = listEl.querySelectorAll('[data-group-uuid]');
-  
   groupItems.forEach(item => {
-    const groupUuid = item.getAttribute('data-group-uuid');
-    const group = (window.allGroups || []).find(g => g && g.uuid === groupUuid);
-    
-    // Формируем текст для поиска: все возможные поля
-    let searchText = '';
-    if (group) {
-      // Собираем все поля для поиска
-      const searchFields = [
-        group.groupName,               // Код группы
-        group.specialization,           // Специализация
-        group.fullName,                // Полное название
-        group.faculty,                 // Факультет
-        group.educationForm,           // Форма обучения
-        group.course                   // Курс
-      ].filter(Boolean).join(' ');
-      
-      searchText = searchFields.toLowerCase();
-    } else {
-      searchText = item.textContent.toLowerCase();
-    }
-    
-    const shouldShow = !query || searchText.includes(query.toLowerCase());
-    item.style.display = shouldShow ? '' : 'none';
+    const text = item.textContent.toLowerCase();
+    item.style.display = !q || text.includes(q) ? '' : 'none';
   });
 
-  // Показываем/скрываем заголовки в зависимости от видимых групп
-  const headers = listEl.querySelectorAll('.fw-bold, .fw-semibold, .text-muted');
-  headers.forEach(header => {
-    // Находим следующий контейнер с группами
-    let nextElement = header.nextElementSibling;
-    let hasVisibleGroups = false;
-    
-    while (nextElement && !nextElement.classList.contains('fw-bold') && !nextElement.classList.contains('fw-semibold')) {
-      const visibleGroups = nextElement.querySelectorAll('[data-group-uuid]:not([style*="display: none"])');
-      if (visibleGroups.length > 0) {
-        hasVisibleGroups = true;
-        break;
+  // Управляем видимостью заголовков курсов и форм обучения
+  const allDivs = Array.from(listEl.children);
+  const toHide = new Set();
+
+  // Ищем заголовки, у которых нет видимых групп
+  for (let i = 0; i < allDivs.length; i++) {
+    const div = allDivs[i];
+    if (div.classList.contains('fw-bold') || div.classList.contains('fw-semibold')) {
+      // Проверяем следующие элементы до следующего заголовка того же или выше уровня
+      let hasVisible = false;
+      for (let j = i + 1; j < allDivs.length; j++) {
+        const next = allDivs[j];
+        if (next.classList.contains('fw-bold')) break; // следующий курс
+        if (next.hasAttribute('data-group-uuid') && next.style.display !== 'none') {
+          hasVisible = true;
+          break;
+        }
+        // Проверяем вложенные form-check внутри следующих div'ов
+        const innerGroups = next.querySelectorAll?.('[data-group-uuid]');
+        if (innerGroups && innerGroups.length > 0) {
+          for (const ig of innerGroups) {
+            if (ig.style.display !== 'none') {
+              hasVisible = true;
+              break;
+            }
+          }
+          if (hasVisible) break;
+        }
       }
-      nextElement = nextElement.nextElementSibling;
+      if (!hasVisible) toHide.add(div);
     }
-    
-    header.style.display = hasVisibleGroups || !query ? '' : 'none';
+  }
+
+  allDivs.forEach(div => {
+    if (div.classList.contains('fw-bold') || div.classList.contains('fw-semibold')) {
+      div.style.display = toHide.has(div) ? 'none' : '';
+    }
   });
 }
 

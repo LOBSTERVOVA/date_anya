@@ -14,4 +14,6 @@ public class ExportRequest {
     @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
     private LocalDate to;
     private List<UUID> groups;
+    /// Если передан — режим «для преподавателей»: экспорт для кафедры
+    private UUID departmentUuid;
 }

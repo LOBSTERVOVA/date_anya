@@ -15,9 +15,9 @@
   const backBtnId = 'ref-back-to-themes';
   const openCreateId = 'ref-open-create';
   const modalId = 'ref-create-modal';
-  const modalCloseId = 'ref-create-close';
-  const modalCancelId = 'ref-create-cancel';
+  const modalTitleId = 'ref-modal-title';
   const modalSaveId = 'ref-create-save';
+  const modalDeleteId = 'ref-create-delete';
   const themeInputId = 'ref-theme-input';
   const importanceId = 'ref-importance';
   const titleId = 'ref-title';
@@ -49,19 +49,25 @@
   }
 
   // Fetch themes list
-  function fetchThemes(){
-    return fetch(apiBase + '/themes').then(r=>r.json());
+  async function fetchThemes(){
+    const r = await fetch(apiBase + '/themes');
+    if (!r.ok) throw new Error(`themes: ${r.status}`);
+    return r.json();
   }
 
   // Fetch items by theme
-  function fetchByTheme(theme){
+  async function fetchByTheme(theme){
     const url = theme ? apiBase + '?theme=' + encodeURIComponent(theme) : apiBase;
-    return fetch(url).then(r=>r.json());
+    const r = await fetch(url);
+    if (!r.ok) throw new Error(`byTheme: ${r.status}`);
+    return r.json();
   }
 
   // Fetch counts per theme
-  function fetchThemeCounts(){
-    return fetch(apiBase + '/themes/counts').then(r=>r.json());
+  async function fetchThemeCounts(){
+    const r = await fetch(apiBase + '/themes/counts');
+    if (!r.ok) throw new Error(`counts: ${r.status}`);
+    return r.json();
   }
 
   // Render themes as cards
@@ -168,24 +174,20 @@
     try { return new Date(iso).toLocaleString('ru-RU'); } catch { return iso; }
   }
 
-  // Modal utilities
-  function showModal(show){
-    const modal = document.getElementById(modalId);
-    if (!modal) return;
-    modal.style.display = show ? 'block' : 'none';
-    modal.classList.toggle('show', !!show);
-    if (show) {
-      modal.style.background = 'rgba(0,0,0,0.5)';
-      modal.style.position = 'fixed';
-      modal.style.top = '0';
-      modal.style.left = '0';
-      modal.style.width = '100%';
-      modal.style.height = '100%';
-      const dialog = modal.querySelector('.modal-dialog');
-      if (dialog) dialog.style.marginTop = '6vh';
-    } else {
-      modal.style.background = '';
+  // Modal utilities — use Bootstrap modal API
+  let bsModal = null;
+  function getBsModal() {
+    if (!bsModal) {
+      const el = document.getElementById(modalId);
+      if (el) bsModal = new bootstrap.Modal(el, { backdrop: true, keyboard: true });
     }
+    return bsModal;
+  }
+
+  function showModal(show) {
+    const m = getBsModal();
+    if (!m) return;
+    if (show) m.show(); else m.hide();
   }
 
   function initQuill(){
@@ -208,25 +210,31 @@
     const title = document.getElementById(titleId);
     const ann = document.getElementById(annotationId);
     if (t && !currentTheme) t.value = '';
-    if (imp) imp.value = '0';
+    if (imp) imp.value = '1';
     if (title) title.value = '';
     if (ann) ann.value = '';
     if (quill) quill.root.innerHTML = '';
     const list = document.getElementById(actualDatesListId);
     if (list) list.innerHTML = '';
+    const delBtn = document.getElementById(modalDeleteId);
+    if (delBtn) delBtn.style.display = 'none';
   }
 
   function openCreate(){
     // Prefill theme if coming from a theme view
     const t = document.getElementById(themeInputId);
     if (t && currentTheme) t.value = currentTheme;
+    // reset edit state
+    editMode = false; editingUuid = null;
+    const titleEl = document.getElementById(modalTitleId);
+    if (titleEl) titleEl.textContent = 'Создание справки';
+    const saveBtn = document.getElementById(modalSaveId);
+    if (saveBtn) saveBtn.innerHTML = '<i class="bi bi-check-lg me-1"></i>Сохранить';
+    const delBtn = document.getElementById(modalDeleteId);
+    if (delBtn) delBtn.style.display = 'none';
     showModal(true);
     // Lazy init Quill once
     if (!quill) initQuill();
-    // reset edit state
-    editMode = false; editingUuid = null;
-    const saveBtn = document.getElementById(modalSaveId);
-    if (saveBtn) saveBtn.textContent = 'Сохранить';
     // reset and add one empty date range row
     const list = document.getElementById(actualDatesListId);
     if (list) { list.innerHTML = ''; addDateRangeRow(); }
@@ -234,7 +242,7 @@
 
   function saveCreate(){
     const t = document.getElementById(themeInputId)?.value.trim();
-    const impVal = parseInt(document.getElementById(importanceId)?.value ?? '0', 10);
+    const impVal = parseInt(document.getElementById(importanceId)?.value ?? '1', 10);
     const titleVal = document.getElementById(titleId)?.value.trim();
     const annVal = document.getElementById(annotationId)?.value.trim();
     const html = quill ? quill.root.innerHTML : '';
@@ -253,26 +261,28 @@
     const req = editMode && editingUuid
       ? fetch(apiBase + '/' + editingUuid, { method: 'PUT', headers, body: JSON.stringify(payload) })
       : fetch(apiBase, { method: 'POST', headers, body: JSON.stringify(payload) });
-    req.then(r => { if (!r.ok) throw new Error('save failed'); return r.json ? r.json() : null; })
+    req.then(r => { if (!r.ok) throw new Error('save failed: ' + r.status); return r.json(); })
       .then(() => {
         showModal(false);
         clearCreateForm();
-        // Refresh themes and current view
-        return fetchThemes();
+        return Promise.all([fetchThemes(), fetchThemeCounts()]);
       })
-      .then(() => Promise.all([fetchThemes(), fetchThemeCounts()]))
       .then(([themes, counts]) => {
         themeCounts = counts || {};
         renderThemes(themes);
         if (currentTheme) return fetchByTheme(currentTheme).then(renderItems);
       })
-      .catch(() => alert('Не удалось сохранить справку'));
+      .catch(e => { console.error('saveCreate:', e); alert('Не удалось сохранить справку'); });
   }
 
   function startEdit(uuid){
     fetch(apiBase + '/' + uuid)
       .then(r => { if (!r.ok) throw new Error('not found'); return r.json(); })
       .then(item => {
+        const titleEl = document.getElementById(modalTitleId);
+        if (titleEl) titleEl.textContent = 'Редактирование справки';
+        const delBtn = document.getElementById(modalDeleteId);
+        if (delBtn) { delBtn.style.display = ''; delBtn.onclick = () => { showModal(false); doDelete(uuid); }; }
         showModal(true);
         if (!quill) initQuill();
         const t = document.getElementById(themeInputId);
@@ -280,7 +290,7 @@
         const title = document.getElementById(titleId);
         const ann = document.getElementById(annotationId);
         if (t) t.value = item.theme || '';
-        if (imp) imp.value = String(item.importanceLevel ?? 0);
+        if (imp) imp.value = String(item.importanceLevel ?? 1);
         if (title) title.value = item.title || '';
         if (ann) ann.value = item.annotation || '';
         if (quill) quill.root.innerHTML = item.htmlText || '';
@@ -290,12 +300,7 @@
           list.innerHTML = '';
           if (Array.isArray(item.actualDates) && item.actualDates.length){
             item.actualDates.forEach(r => {
-              addDateRangeRow({
-                startMonth: r.startMonth,
-                startDay: r.startDay,
-                endMonth: r.endMonth,
-                endDay: r.endDay
-              });
+              addDateRangeRow(r, r);
             });
           } else {
             addDateRangeRow();
@@ -303,9 +308,9 @@
         }
         editMode = true; editingUuid = item.uuid;
         const saveBtn = document.getElementById(modalSaveId);
-        if (saveBtn) saveBtn.textContent = 'Обновить';
+        if (saveBtn) saveBtn.innerHTML = '<i class="bi bi-check-lg me-1"></i>Обновить';
       })
-      .catch(() => alert('Не удалось загрузить справку'));
+      .catch(e => { console.error('startEdit:', e); alert('Не удалось загрузить справку'); });
   }
 
   // ----- Actual Dates handling (month-day only, no year) -----
@@ -428,7 +433,7 @@
         return Promise.all([fetchThemes(), fetchThemeCounts()])
           .then(([themes, counts]) => { themeCounts = counts || {}; renderThemes(themes); });
       })
-      .catch(() => alert('Не удалось удалить справку'));
+      .catch(e => { console.error('doDelete:', e); alert('Не удалось удалить справку'); });
   }
 
   function bindUi(){
@@ -438,7 +443,8 @@
     // Load and render themes with counts
     Promise.all([fetchThemes(), fetchThemeCounts()])
       .then(([themes, counts]) => { themeCounts = counts || {}; renderThemes(themes); })
-      .catch(()=>{
+      .catch(e => {
+        console.error('bindUi:', e);
         const grid = document.getElementById(themesGridId);
         if (grid) grid.innerHTML = '<div class="col-12"><div class="alert alert-danger">Ошибка загрузки тем</div></div>';
       });
@@ -446,17 +452,12 @@
     // Controls
     const back = document.getElementById(backBtnId);
     const openBtn = document.getElementById(openCreateId);
-    const closeBtn = document.getElementById(modalCloseId);
-    const cancelBtn = document.getElementById(modalCancelId);
     const saveBtn = document.getElementById(modalSaveId);
+    const addBtn = document.getElementById(actualDatesAddId);
 
     if (back) back.addEventListener('click', backToThemes);
     if (openBtn) openBtn.addEventListener('click', openCreate);
-    if (closeBtn) closeBtn.addEventListener('click', () => { showModal(false); });
-    if (cancelBtn) cancelBtn.addEventListener('click', () => { showModal(false); });
     if (saveBtn) saveBtn.addEventListener('click', saveCreate);
-
-    const addBtn = document.getElementById(actualDatesAddId);
     if (addBtn) addBtn.addEventListener('click', () => addDateRangeRow());
   }
 

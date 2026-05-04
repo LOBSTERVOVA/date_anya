@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres
+    restart: always
+    environment:
+      POSTGRES_DB: rus
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 20020805
+      PGDATA: /data
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - postgres_data:/data
+
+  app:
+    restart: always
+    build: .
+    ports:
+      - "8080:8080"
+    depends_on:
+      - postgres
+    environment:
+      db.url: postgres:5432/rus
+      db.username: postgres
+      db.password: 20020805
+    volumes:
+      - ./logs:/app/logs
+
+volumes:
+  postgres_data:
+
+#networks:
+#  app-network:
+#    driver: bridge
