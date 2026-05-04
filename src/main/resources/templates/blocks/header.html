@@ -1,0 +1,62 @@
+<div xmlns:th="http://www.thymeleaf.org" th:fragment="header">
+<nav class="navbar navbar-expand-lg navbar-light bg-glass sticky-top border-bottom">
+  <div class="container-fluid">
+    <a class="navbar-brand d-flex align-items-center gap-2" th:href="@{/schedule}">
+      <img src="/public/footer_logo.svg" alt="Logo" width="44" height="44" style="object-fit:contain;">
+      <span class="fs-4 fw-light">Университет</span>
+    </a>
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNavbar" aria-controls="mainNavbar" aria-expanded="false" aria-label="Toggle navigation">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+    <div class="collapse navbar-collapse" id="mainNavbar">
+      <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+        <li class="nav-item">
+          <a class="nav-link fs-4 px-3 py-2 fw-light h-100 d-flex align-items-center" th:classappend="${active}=='schedule' ? ' active fw-normal' : ''" th:href="@{/schedule}">
+            Расписание
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link fs-4 px-3 py-2 fw-light h-100 d-flex align-items-center" th:classappend="${active}=='news' ? ' active fw-normal' : ''" th:href="@{/news}">
+            Новости
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link fs-4 px-3 py-2 fw-light h-100 d-flex align-items-center" th:classappend="${active}=='departments-lecturers' ? ' active fw-normal' : ''" th:href="@{/departments-lecturers}">
+            Кафедры и преподаватели
+          </a>
+        </li>
+        <li class="nav-item dropdown">
+          <a id="communityMenu" class="nav-link fs-4 dropdown-toggle px-3 py-2 fw-light h-100 d-flex align-items-center" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false" th:classappend="${active}=='community' ? ' fw-normal' : ''">
+            Сообщество
+          </a>
+          <ul class="dropdown-menu" aria-labelledby="communityMenu">
+            <li><a class="dropdown-item fs-4 hover-slide" th:href="@{/community/sports-sections}">Спортивные секции</a></li>
+            <li><a class="dropdown-item fs-4 hover-slide" th:href="@{/community/science-clubs}">Научные кружки</a></li>
+            <li><a class="dropdown-item fs-4 hover-slide" th:href="@{/community/sport-events}">Спортивные мероприятия</a></li>
+            <li><a class="dropdown-item fs-4 hover-slide" th:href="@{/community/canteen-menu}">Меню столовой</a></li>
+          </ul>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link fs-4 px-3 py-2 fw-light h-100 d-flex align-items-center" th:classappend="${active}=='reference' ? ' active fw-normal' : ''" th:href="@{/reference}">
+            Справочная информация
+          </a>
+        </li>
+      </ul>
+    </div>
+  </div>
+</nav>
+<style>
+  .bg-glass { background: rgba(255,255,255,0.72) !important; backdrop-filter: saturate(180%) blur(14px); -webkit-backdrop-filter: saturate(180%) blur(14px); }
+  .navbar { z-index: 1080; }
+  .dropdown-menu { z-index: 1090; }
+  .navbar-brand span { letter-spacing: .2px; }
+  .nav-link, .dropdown-item { position: relative; transition: color .2s ease; }
+  .nav-link::after { content: ''; position: absolute; left: 12px; right: 12px; bottom: 6px; height: 2px; background: currentColor; transform: scaleX(0); transform-origin: left; transition: transform .25s ease; opacity: .6; }
+  .nav-link:hover { color: #0d6efd; }
+  .nav-link:hover::after { transform: scaleX(1); }
+  .nav-link.active { color: #0d6efd !important; }
+  .dropdown-item.hover-slide { overflow: hidden; }
+  .dropdown-item.hover-slide::before { content: ''; position: absolute; inset: 0; transform: translateX(-100%); background: rgba(13,110,253,.08); transition: transform .25s ease; }
+  .dropdown-item.hover-slide:hover::before { transform: translateX(0); }
+</style>
+</div>

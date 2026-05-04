@@ -1,0 +1,645 @@
+:root {
+    --vh: 1vh;
+}
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+.blocks-view {
+    overflow: hidden;
+    #touch-action: none;
+}
+.section {
+    width: 100%;
+    /*height: calc(var(--vh, 1vh) * 100);*/
+    position: relative;
+    overflow: hidden;
+}
+.section-view {
+    height: calc(var(--vh, 1vh) * 100);
+}
+#main-video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+.content-block {
+    width: 100%;
+    height: 100%;
+}
+.second-section .content-block {
+    background: rgba(0, 0, 0, 1);
+}
+/* Пользовательские классы для изменения размера шрифта */
+.fs-responsive {
+    font-size: 1rem !important;
+}
+.fs-responsive-1 {
+    font-size: 1.7rem !important;
+}
+.fs-responsive-2 {
+    font-size: 5rem !important;
+}
+.fs-responsive-3 {
+    font-size: 1.2rem !important;
+}
+.fs-responsive-4 {
+    font-size: 2.5rem !important;
+}
+@media (min-width: 1280px) {
+    .fs-responsive {
+        font-size: 1.5rem !important; /* Размер для lg и выше (fs-4) */
+    }
+    .fs-responsive-1 {
+        font-size: 2rem !important; /* Размер для lg и выше (fs-4) */
+    }
+    .fs-responsive-2 {
+        font-size: 5.5rem !important; /* Размер для lg и выше (fs-4) */
+    }
+    .fs-responsive-3 {
+        font-size: 1.8rem !important; /* Размер для lg и выше (fs-4) */
+    }
+    .fs-responsive-4 {
+        font-size: 5rem !important; /* Размер для lg и выше (fs-4) */
+    }
+}
+.translate-down {
+    -webkit-transform: translate(0,150px); /* Префикс для WebKit */
+    transform: translate(0,150px);
+}
+.translate-up {
+    -webkit-transform: translate(0,-120px); /* Префикс для WebKit */
+    transform: translate(0,-120px);
+}
+.translate-up-min {
+    -webkit-transform: translate(0,-80px); /* Префикс для WebKit */
+    transform: translate(0,-80px);
+}
+.fact-card-default {
+    width: 80vw;
+    height: 15vh;
+}
+.fact-card {
+    width: 22vw;
+    height: 30vh;
+}
+.fact-card-2 {
+    width: 23vw;
+    height: 20vh;
+}
+@media (max-width: 992px) {
+    .translate-down {
+        -webkit-transform: translate(0,0); /* Префикс для WebKit */
+        transform: translate(0,0);
+    }
+    .translate-up {
+        -webkit-transform: translate(0,0); /* Префикс для WebKit */
+        transform: translate(0,0);
+    }
+    .translate-up-min {
+        -webkit-transform: translate(0,0); /* Префикс для WebKit */
+        transform: translate(0,0);
+    }
+    .fact-card {
+        width: 80vw;
+        height: 20vh;
+    }
+    .fact-card-2 {
+        width: 80vw;
+        height: 15vh;
+    }
+}
+.small-fact-card {
+    width: 90%;
+    min-height: 35vw;
+}
+.big-fact-card {
+    width: 65%;
+    min-height: 50vw;
+}
+.button-container {
+    display: flex;
+    background-color: white; /* Светло-серый фон */
+    border-radius: 8px; /* Округлые края */
+    padding: 3px;
+    position: relative;
+    height: 36px;
+}
+.slider-button {
+    border: none;
+    padding: 0 20px;
+    cursor: pointer;
+    border-radius: 20px; /* Округлые края кнопок */
+    background-color: transparent;
+    color: black; /* Черный текст по умолчанию */
+    transition: color 0.3s;
+    z-index: 1;
+    position: relative;
+    flex: 1; /* Равномерное распределение пространства */
+}
+.slider {
+    position: absolute;
+    top: 3px;
+    left: 5px;
+    height: calc(100% - 6px);
+    background-color: #333 !important; /* Темный цвет для активной кнопки */
+    border-radius: 5px;
+    transition: all 0.3s ease;
+    z-index: 0;
+}
+.slider-button.active {
+    color: white; /* Белый текст на активной кнопке */
+}
+.slider1 {
+    position: absolute;
+    top: 3px;
+    left: 5px;
+    height: calc(100% - 6px);
+    width: calc(50% - 5px); /* Ширина слайдера должна соответствовать ширине кнопки */
+    background-color: #333 !important; /* Темный цвет для активной кнопки */
+    border-radius: 5px;
+    transition: all 0.3s ease;
+    z-index: 0;
+}
+.slider-button1 {
+    border: none;
+    padding: 0 20px;
+    cursor: pointer;
+    border-radius: 20px; /* Округлые края кнопок */
+    background-color: transparent !important;
+    color: black; /* Черный текст по умолчанию */
+    transition: color 0.3s;
+    z-index: 1;
+    position: relative;
+    flex: 1; /* Равномерное распределение пространства */
+}
+.slider-button1.active {
+    color: white; /* Белый текст на активной кнопке */
+}
+/* Добавляем стили для белой кнопки с эффектом */
+/* Стили для контейнера кнопки */
+.action-btn-container {
+    position: relative;
+    display: inline-block;
+    background-color: white;
+    border-radius: 10px;
+    padding: 5px;
+    height: 36px;
+}
+.btn-white {
+    border: none;
+    padding: 0 20px;
+    cursor: pointer;
+    border-radius: 15px;
+    background-color: transparent;
+    color: black;
+    transition: color 0.3s;
+    position: relative;
+    z-index: 1;
+}
+.action-slider {
+    position: absolute;
+    top: 5px;
+    left: 5px;
+    width: calc(100% - 10px);
+    height: calc(100% - 10px);
+    background-color: #333;
+    border-radius: 15px;
+    opacity: 0;
+    -webkit-transform: scale(0.95); /* Префикс для WebKit */
+    transform: scale(0.95);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 0;
+}
+.action-btn-container.active .action-slider {
+    opacity: 1;
+    -webkit-transform: scale(1); /* Префикс для WebKit */
+    transform: scale(1);
+}
+.btn-white.pressed {
+    color: white !important;
+}
+.search-custom::placeholder {
+    color: #adb5bd !important; /* Светло-серый цвет */
+    opacity: 1; /* Для полной непрозрачности */
+}
+/* Дополнительные стили для выравнивания */
+.search-custom {
+    padding-left: 2.0rem !important; /* Отступ для иконки */
+}
+.fs-7 {
+    font-size: 0.8rem !important;
+}
+/* Стили для таблицы календаря */
+.calendar {
+    width: 100% !important;
+}
+.border-collapse {
+    border-collapse: collapse; /* Убираем границы между ячейками */
+}
+/* Стили для заголовков и ячеек таблицы */
+.calendar th, .calendar td {
+    padding: 5px 2px;
+    text-align: center;
+}
+/* Стиль для текущего дня */
+.current-day {
+    background-color: #fa7511 !important; /* Оранжевый фон */
+    color: white !important; /* Белый текст */
+    border-radius: 25% !important; /* Круглая форма */
+}
+/* Стиль для чисел предыдущего и следующего месяца */
+.other-month {
+    color: #acacac !important; /* Серый цвет текста */
+}
+/* Убираем голубую обводку и шапку */
+.accordion-button:focus {
+    box-shadow: none !important;
+    border-color: transparent !important;
+}
+.accordion-button:not(.collapsed) {
+    background-color: white !important;
+    color: inherit !important;
+}
+.accordion-button {
+    background-color: white !important;
+    border: none !important;
+    box-shadow: none !important;
+    color: black !important;
+}
+.accordion-button:not(.collapsed) {
+    background-color: white !important;
+    border: none !important;
+    box-shadow: none !important;
+    color: black !important;
+}
+.accordion-button:focus {
+    border: none !important;
+    box-shadow: none !important;
+}
+.accordion-item {
+    border: none !important;
+}
+.accordion-body {
+    background-color: white !important;
+    border: none !important;
+}
+/* Изменение цвета чекбокса на оранжевый */
+.form-check-input:checked {
+    background-color: #fa7511 !important;
+    border-color: #fa7511 !important;
+}
+/* Подсветка при фокусе */
+.form-check-input:focus {
+    box-shadow: 0 0 0 0.25rem rgba(255, 165, 0, 0.25) !important;
+}
+.calendar-card {
+    width: 14.28571428571429%;
+}
+.calendar-event {
+    height: 12.5%;
+}
+.calendar-week-day-col {
+    width: 14.28571428571429%;
+}
+/* Базовый стиль для колонки */
+.animated-column {
+    transition: all 0.5s ease; /* Анимируем все свойства */
+    min-width: 0; /* Начальное значение */
+    flex: 1; /* Равномерное распределение пространства */
+}
+/* Стиль при наведении курсора */
+.animated-column:hover {
+    min-width: 50%; /* Увеличиваем минимальную ширину */
+    flex-grow: 2; /* Увеличиваем коэффициент роста */
+}
+.app-zoom {
+    -webkit-transition: transform 0.5s ease; /* Префикс для WebKit */
+    transition: transform 0.5s ease;
+}
+.app-zoom:hover {
+    -webkit-transform: scale(1.05); /* Префикс для WebKit */
+    transform: scale(1.05);
+}
+.cursor-pointer{
+    cursor: pointer;
+}
+.responsive-text-container {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+}
+.responsive-text {
+    font-size: 30vh;
+    white-space: nowrap;
+    width: auto;
+    display: inline-block;
+}
+* {
+    line-height: 1em;
+}
+/*.video-section {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    max-height: 100vh;
+    z-index: -1;
+}*/
+.video-section {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100vh;
+    height: calc(var(--vh, 1vh) * 100);
+    z-index: -1;
+}
+.bg-nero {
+    background-color: #1e1e1e!important;
+    border: none !important;
+}
+.bg-gainsboro {
+    background-color: #dfdddd !important;
+}
+.bg-none {
+    background: none !important;
+    border: none !important;
+}
+.img-height-8-vh {
+    height: 8vh!important;
+}
+.img-height-7-vh {
+    height: 7vh!important;
+}
+.img-height-6-vh {
+    height: 6vh!important;
+}
+.img-height-5-vh {
+    height: 5vh!important;
+}
+.nav-link-white {
+    color: #ffffff !important;
+}
+.nav-link-white:hover, .nav-link-white:focus {
+    color: #aeaeae !important;
+}
+.nav-link-dark {
+    color: black !important;
+}
+.nav-link-dark:hover, .nav-link-dark:focus {
+    color: #4e4c4c !important;
+}
+.link-secondary {
+    color: #aeaeae !important;
+}
+.text-secondary {
+    color: #aeaeae !important;
+}
+.text-secondary-footer {
+    color: #aeaeae !important;
+}
+.gray-grad-bg {
+    background: linear-gradient(
+            to right,
+            rgba(230, 229, 229) 0%,
+            #F4F4F4 50%,
+            rgb(230, 229, 229) 100%
+    );
+}
+@media (min-width: 576px) {
+    .gray-grad-bg {
+        background: linear-gradient(
+                to right,
+                rgb(216, 214, 213) 0%,
+                #F4F4F4 50%,
+                rgba(216, 214, 213) 100%
+        );
+    }
+}
+
+.display-1 {
+    font-size: calc(1.625rem + 6.5vw);
+    font-weight: 300;
+    line-height: 1.2;
+}
+.object-fit-cover {
+    object-fit: cover;
+}
+#delete-event-btn:hover {
+    color: red;
+    border-color: red;
+}
+.media-width {
+    width: 50% !important;
+}
+.media-width p {
+    text-align: left;
+    hyphens: auto;
+}
+@media only screen and (max-width: 719px) {
+    .media-width {
+        width: 100% !important;
+    }
+}
+.mobile-factoids-container-height {
+    height: 540vw; /* Начальное значение для ширины меньше 260px */
+}
+@media (min-width: 250px) {
+    .mobile-factoids-container-height {
+        height: 515vw; /* Начальное значение для ширины меньше 260px */
+    }
+}
+@media (min-width: 260px) {
+    .mobile-factoids-container-height {
+        height: 485vw;
+    }
+}
+@media (min-width: 275px) {
+    .mobile-factoids-container-height {
+        height: 460vw;
+    }
+}
+@media (min-width: 295px) {
+    .mobile-factoids-container-height {
+        height: 440vw;
+    }
+}
+@media (min-width: 315px) {
+    .mobile-factoids-container-height {
+        height: 420vw;
+    }
+}
+@media (min-width: 325px) {
+    .mobile-factoids-container-height {
+        height: 400vw;
+    }
+}
+@media (min-width: 350px) {
+    .mobile-factoids-container-height {
+        height: 380vw;
+    }
+}
+@media (min-width: 370px) {
+    .mobile-factoids-container-height {
+        height: 360vw;
+    }
+}
+@media (min-width: 405px) {
+    .mobile-factoids-container-height {
+        height: 340vw;
+    }
+}
+@media (min-width: 440px) {
+    .mobile-factoids-container-height {
+        height: 320vw;
+    }
+}
+/* Для ширины больше 250px */
+@media (min-width: 480px) {
+    .mobile-factoids-container-height {
+        height: 300vw;
+    }
+}
+/* Для ширины больше 400px */
+@media (min-width: 550px) {
+    .mobile-factoids-container-height {
+        height: 280vw;
+    }
+}
+/* Для ширины больше 760px */
+@media (min-width: 760px) {
+    .mobile-factoids-container-height {
+        height: 260vw;
+    }
+}
+/* Для ширины больше 1178px */
+@media (min-width: 1160px) {
+    .mobile-factoids-container-height {
+        height: 245vw;
+    }
+}
+.login-width {
+    max-width: 90vw;  /* 90% ширины экрана */
+    min-width: 90vw;
+    width: 90vw;      /* Фиксированная ширина */
+}
+@media (min-width: 333px) {  /* Если экран шире 333px */
+    .login-width {
+        min-width: 300px;  /* Минимальная ширина */
+        max-width: 300px;
+        width: 300px;
+    }
+}
+.no-focus {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-user-select: none;
+    -moz-user-focus: ignore;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+}
+.dropdown-item:active, .dropdown-item:focus {
+    background-color: transparent !important;
+    color: inherit !important;
+}
+.mobile-events-icons {
+    aspect-ratio: 1 / 1;
+    border-radius: 5px !important;
+}
+.light-thin-border {
+    border: 1px solid #DEDEDE !important;
+}
+.bottom-sheet {
+    position: fixed;
+    bottom: 0; /* Начальное положение (в видимой области) */
+    left: 0;
+    width: 100%;
+    max-height: 80vh;
+    background-color: white;
+    border-radius: 20px 20px 0 0;
+    z-index: 1050;
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.15);
+    -webkit-transition: bottom 0.5s ease-out; /* Префикс для WebKit */
+    transition: bottom 0.5s ease-out; /* Плавное изменение свойства bottom */
+}
+.bottom-sheet.hide {
+    bottom: -80vh; /* Смещаем элемент вниз на 80vh */
+}
+
+.accordion-button-reversed {
+    flex-direction: row-reverse; /* Меняет порядок элементов на обратный */
+    justify-content: flex-start;   /* Выравнивает текст по правому краю */
+}
+
+.accordion-button-reversed::after {
+    margin-right: 10px;             /* Убирает отступ справа от стрелочки */
+    margin-left: 0 !important;
+}
+
+.text-green {
+    color: #1FAD37;
+}
+
+.separator-gradient {
+    background: linear-gradient(
+            to bottom,
+            rgba(255, 255, 255, 0) 0%,
+            rgba(255, 255, 255, 0.3) 50%,
+            rgba(255, 255, 255, 0) 100%
+    );
+}
+
+.slide-in {
+    opacity: 0;
+    transform: translateX(-100%);
+    transition: opacity 0.5s ease, transform 0.5s ease;
+}
+
+.slide-in.visible {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+.deny-cookies {
+    background-color: #f2f2f2 !important;
+}
+.bi-list {
+    color: #FD8F22;
+}
+
+.border-orange {
+    border: #FD8F22 1px solid !important;
+}
+
+.btn-create-user {
+    font-size: 0.9rem;
+}
+
+.btn-dark {
+    border: none;
+    padding: 12px 26px !important;
+    cursor: pointer;
+    border-radius: 15px;
+    background-color: #1E1E1E;
+    color: white;
+    transition: color 0.3s;
+    position: relative;
+    z-index: 1;
+}
+
+.input-create-user {
+    padding: 16px 12px !important;
+}
+
+/*для homemade-schedule*/
+.no-select {
+    user-select: none !important;
+    -webkit-user-select: none !important;
+    -moz-user-select: none !important;
+    -ms-user-select: none !important;
+    cursor: default !important;
+}

@@ -1,0 +1,59 @@
+.bg-black {
+    background-color: #000000;
+}
+.bg-orange-subtle {
+    background-color: rgba(250, 230, 214, 0.92) !important;
+    box-shadow: inset 10px 10px 10px 3px white;
+    border-radius: 15px; /* Круглая форма */
+}
+.bg-orange {
+    background: #FB820A !important;
+    color: white !important;
+}
+.accordion-item .accordion-button.bg-orange {
+    background: #FB820A !important;
+    color: white !important;
+}
+.accordion-item .accordion-button.bg-orange:not(.collapsed) {
+    background: #FB820A !important;
+    color: white !important;
+}
+.accordion-item .accordion-body.bg-orange {
+    background: #FB820A !important;
+    color: white !important;
+}
+.dictionary-accordion-button::after {
+    color: white !important;
+    filter: brightness(0) saturate(100%) invert(96%) sepia(96%) saturate(0%) hue-rotate(139deg) brightness(104%) contrast(106%) !important;
+}
+.btn-orange {
+    background-color: #fa7612 !important;
+    border-color: #fa7612 !important;
+    color: white !important; /* Устанавливаем цвет текста на белый */
+}
+.btn-orange:hover {
+    background-color: #ac4d1f !important; /* Темнее оттенок для hover */
+    border-color: #954017 !important;
+    color: white !important;
+}
+.btn-orange:focus, .btn-orange.focus {
+    box-shadow: 0 0 0 0.25rem rgba(250, 118, 18, 0.5) !important;
+}
+.btn-orange.disabled, .btn-orange:disabled {
+    background-color: #fa7612 !important;
+    border-color: #fa7612 !important;
+}
+.btn-orange:not(:disabled):not(.disabled):active, .btn-orange:not(:disabled):not(.disabled).active,
+.show > .btn-orange.dropdown-toggle {
+    background-color: #ac4d1f !important;
+    border-color: #954017 !important;
+}
+.bg-glass {
+    background: rgba(255, 255, 255, 0.2); /* Полупрозрачный белый фон */
+    -webkit-backdrop-filter: blur(10px); /* Префикс для WebKit */
+    backdrop-filter: blur(10px); /* Размытие содержимого под элементом */
+    z-index: 1; /* Убедитесь, что элемент находится выше других элементов */
+}
+.text-orange {
+    color: #fa7612 !important;
+}

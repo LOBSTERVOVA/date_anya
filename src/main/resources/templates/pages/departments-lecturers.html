@@ -1,0 +1,65 @@
+<div class="container"><h1 class="mt-4">Кафедры и преподаватели</h1></div>
+
+<div class="container mt-3">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div class="text-muted">Выберите кафедру и добавьте преподавателей</div>
+    <a class="btn btn-success" href="/departments/new"><i class="bi bi-plus-lg"></i> Создать кафедру</a>
+  </div>
+
+  <div id="departmentsList" class="row g-3"></div>
+</div>
+
+<script>
+  (function() {
+    const container = document.getElementById('departmentsList');
+    if (!container) return;
+    fetch('/api/department')
+      .then(r => r.json())
+      .then(items => {
+        function initials(f, p){
+          const fi = f ? f.trim().charAt(0).toUpperCase() + '.' : '';
+          const pi = p ? p.trim().charAt(0).toUpperCase() + '.' : '';
+          return (fi || pi) ? ` ${fi}${pi}` : '';
+        }
+        function fmt(l){
+          const ln = (l.lastName || '').trim();
+          return (ln + initials(l.firstName, l.patronymic)).trim();
+        }
+        function isHead(l){ return (l && (l.isHead ?? l.head)) === true; }
+        function listLine(dept){
+          const list = Array.isArray(dept.lecturers) ? dept.lecturers : [];
+          if (!list.length) return '';
+          const heads = list.filter(x => isHead(x));
+          const headIds = new Set(heads.map(x => x.uuid));
+          const others = list.filter(x => !headIds.has(x.uuid));
+          const priority = { PROFESSOR: 1, DOCENT: 2, SENIOR_LECTURER: 3, LECTURER: 4, EDUCATIONAL_METHODOLOGIST: 5 };
+          others.sort((a, b) => {
+            const pa = priority[a.academicTitle] || 9;
+            const pb = priority[b.academicTitle] || 9;
+            if (pa !== pb) return pa - pb;
+            return fmt(a).localeCompare(fmt(b), 'ru');
+          });
+          const ordered = [...heads, ...others].map(fmt).filter(Boolean);
+          return ordered.join(', ');
+        }
+
+        container.innerHTML = items.map(it => {
+          const name = (it.name || '').toString();
+          const line = listLine(it);
+          return `
+            <div class="col-12 col-md-6 col-lg-4">
+              <div class="card h-100 shadow-sm">
+                <div class="card-body d-flex flex-column">
+                  <h5 class="card-title mb-2 fs-1">${name}</h5>
+                  <div class="text-muted small text-truncate mb-2 fs-4" title="${line}">${line}</div>
+                  <div class="mt-auto d-flex gap-2">
+                    <a class="btn btn-outline-primary fs-4" href="/departments/${it.uuid}/edit">Редактировать кафедру</a>
+                  </div>
+                </div>
+              </div>
+            </div>`;
+        }).join('');
+      })
+      .catch(() => { container.innerHTML = '<div class="text-danger">Не удалось загрузить список кафедр</div>'; });
+  })();
+</script>

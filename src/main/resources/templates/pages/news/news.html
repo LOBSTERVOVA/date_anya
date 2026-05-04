@@ -1,0 +1,125 @@
+<section class="container py-4" id="news-page">
+  <!-- Заголовок и кнопка создания -->
+  <div class="d-flex align-items-center justify-content-between mb-3">
+    <h1 class="m-0">Новости</h1>
+    <button id="open-create-news" type="button" class="btn btn-primary">
+      <i class="bi bi-plus-lg me-1"></i>
+      Новая новость
+    </button>
+  </div>
+
+  <!-- Основная зона просмотра новостей: карточки/лента -->
+  <div id="news-list" class="d-flex flex-column gap-3">
+    <!-- JS заполнит карточки новостей -->
+  </div>
+
+  <!-- Модал создания новости (frontend-only) -->
+  <div id="create-news-modal" class="modal" tabindex="-1" style="display:none;">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title fs-2">Создание новости</h5>
+          <button type="button" class="btn-close" id="create-news-close" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <!-- Две колонки: слева форма, справа предпросмотр под телефон -->
+          <div class="row g-3 align-items-stretch">
+            <!-- Левая колонка: форма создания -->
+            <div class="col-12 col-lg-7">
+              <!-- Форма создания: тип, заголовок, редактор Quill -->
+              <div class="mb-3">
+                <label class="form-label fs-4">Тип новости</label>
+                <!-- Удобный формат выбора: список кнопок (radio-like) -->
+                <div id="news-type-pills" class="d-flex flex-wrap gap-2 mb-2">
+                  <!-- JS построит pill-кнопки типов -->
+                </div>
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Заголовок</label>
+                <input id="news-title" class="form-control" placeholder="Короткий заголовок новости" />
+              </div>
+              <div class="mb-1">
+                <label class="form-label">Содержимое</label>
+                <!-- Контейнер редактора; Quill будет инициализирован JS -->
+                <div id="news-editor" class="bg-white border rounded" style="min-height: 260px;"></div>
+              </div>
+            </div>
+
+            <!-- Правая колонка: предпросмотр как на телефоне -->
+            <div class="col-12 col-lg-5">
+              <!-- Каркас телефона: изображение телефона с оверлеем предпросмотра -->
+              <div class="card shadow-sm h-100">
+                <div class="card-header py-2">
+                  <div class="small text-muted">Предпросмотр (мобильный)</div>
+                </div>
+                <div class="card-body p-0">
+                  <div class="position-relative mx-auto" style="max-width: 420px;">
+                    <!-- Фон: изображение телефона -->
+                    <img src="/public/phone.svg" alt="phone" class="img-fluid w-100"/>
+                    <!-- Оверлей: отступы по 40px со всех сторон -->
+                    <div id="news-phone-preview" class="position-absolute overflow-auto my-4" style="inset: 40px;">
+                      <div class="preview-root">
+                        <h5 class="preview-title roboto-font">Заголовок новости</h5>
+                        <div class="preview-content roboto-font text-break">
+                          <p class="mb-0 text-muted">Содержимое появится по мере ввода...</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" id="create-news-cancel">Отмена</button>
+          <!-- Сохранение не требуется по заданию; оставим как disabled -->
+          <button type="button" class="btn btn-success" id="create-news-save" disabled>Сохранить (скоро)</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Quill -->
+<link href="https://cdn.quilljs.com/1.3.7/quill.snow.css" rel="stylesheet">
+<script src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>
+<!-- Quill Image Resize module -->
+<script src="https://cdn.jsdelivr.net/npm/quill-image-resize-module@3.0.0/image-resize.min.js"></script>
+<style>
+  /* Ensure Roboto font is available (must be at the top of the style block) */
+  @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap');
+
+  /* Default editor font: Roboto, and bigger base font-size for readability */
+  #news-editor .ql-editor {
+    font-family: 'Roboto', Arial, sans-serif !important;
+    font-size: 18px !important;
+    line-height: 1.6;
+  }
+  #news-editor .ql-editor img { max-width: 100%; height: auto; }
+  /* Optional: make toolbar corners match container */
+  #news-editor .ql-toolbar { border-top-left-radius: .375rem; border-top-right-radius: .375rem; }
+  #news-editor .ql-container { border-bottom-left-radius: .375rem; border-bottom-right-radius: .375rem; }
+
+  /* Предпросмотр: везде принудительно Roboto */
+  #news-phone-preview, #news-phone-preview .preview-root, #news-phone-preview .preview-root * {
+    font-family: 'Roboto', Arial, sans-serif !important;
+  }
+  /* Изображения в предпросмотре подгоняем под ширину "экрана телефона" */
+  #news-phone-preview img { max-width: 100%; height: auto; border-radius: 12px; }
+  #news-phone-preview .preview-title { font-size: 20px; line-height: 1.35; margin-bottom: .5rem; }
+  #news-phone-preview .preview-content { font-size: 16px; line-height: 1.6; }
+
+  /* Отображение quill-классов размеров и выравнивания в превью */
+  #news-phone-preview .ql-size-small { font-size: 0.8em; }
+  #news-phone-preview .ql-size-large { font-size: 1.5em; }
+  #news-phone-preview .ql-size-huge { font-size: 2.2em; }
+
+  #news-phone-preview .ql-align-center { text-align: center; }
+  #news-phone-preview .ql-align-right { text-align: right; }
+  #news-phone-preview .ql-align-justify { text-align: justify; }
+
+  /* На всякий случай усилим жирность */
+  #news-phone-preview b, #news-phone-preview strong { font-weight: 700; }
+</style>
+<script type="module" src="/js/pages/news/news.js"></script>

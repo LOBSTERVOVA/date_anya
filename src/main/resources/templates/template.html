@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html class="h-100 w-100 overflow-x-hidden" lang="ru" xmlns:th="http://www.thymeleaf.org">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+        <!-- Meta tags Open Graph -->
+        <meta property="og:title" content="Ваш спортивный календарь">
+        <meta property="og:description" content="Отыщите то что близко и нужно вам в нашем спортивном календаре">
+        <meta property="og:image" content="https://cdn.s3.domensport.com/calendar/static/image/Снимок экрана 2025-09-13 160433.png">
+        <meta property="og:url" content="https://domensport.com">
+        <meta property="og:type" content="website">
+        <meta property="og:site_name" content="domensport.com">
+
+        <title th:text="${title}"></title>
+        <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@500&display=swap" rel="stylesheet">
+<!--        <link rel="icon" href="/ds_final.svg" type="image/x-icon">-->
+        <link href="/css/style.css" rel="stylesheet">
+        <link href="/fw/bootstrap/dist/css/bootstrap.min.css" rel="stylesheet">
+        <link href="/fw/bootstrap-icons-1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+<!--        <script src="https://api-maps.yandex.ru/v3/?apikey=7c13cf7d-c937-4ca6-8021-145ac16bdcae&lang=ru_RU"></script>-->
+        <script src="/fw/jquery/dist/jquery.js"></script>
+        <script src="/js/global/weakly.seeing.js"></script>
+        <script th:inline="javascript">
+            var csrf = /*[[${_csrf}]]*/ null;
+            var cdn = /*[[${cdn}]]*/ null;
+            var mainUrl = 'http://localhost:8080';
+            var auth = /*[[${auth}]]*/ null;
+            var applicationUser = /*[[${applicationUser}]]*/ null;
+        </script>
+        <script src="/js/func/init.js"></script>
+    </head>
+    <script>console.log("1111111111111111111111111111111111111111111")</script>
+
+    <body class="h-100">
+        <div class="toast-container position-fixed bottom-0 end-0 p-3" id="info-toast" style="transform: translate(-20px, 0)"></div>
+
+        <header class="row m-0 p-0" th:insert="~{blocks/header :: header}"></header>
+
+        <div th:if="${index} == 'main-page'">
+            <main th:insert="~{pages/home/main-page}"></main>
+        </div>
+        <div class="gray-grad-bg d-flex flex-column h-100" th:if="${index} == 'schedule-page'">
+            <main th:if="${index} == 'schedule-page'" th:insert="~{pages/schedule/schedule}"></main>
+        </div>
+
+        <div class="container py-4" th:if="${index} == 'departments-lecturers'">
+            <main th:insert="~{pages/departments-lecturers}"></main>
+        </div>
+
+        <div class="container py-4" th:if="${index} == 'departments-edit'">
+            <main th:insert="~{pages/departments/edit}"></main>
+        </div>
+
+        <div class="container py-4" th:if="${index} == 'departments-new'">
+            <main th:insert="~{pages/departments/new}"></main>
+        </div>
+
+        <div class="container py-4" th:if="${index} == 'community-sports-sections'">
+            <main th:insert="~{pages/community/sports-sections}"></main>
+        </div>
+        <div class="container py-4" th:if="${index} == 'community-science-clubs'">
+            <main th:insert="~{pages/community/science-clubs}"></main>
+        </div>
+        <div class="container py-4" th:if="${index} == 'community-sport-events'">
+            <main th:insert="~{pages/community/sport-events}"></main>
+        </div>
+        <div class="container py-4" th:if="${index} == 'community-canteen-menu'">
+            <main th:insert="~{pages/community/canteen-menu}"></main>
+        </div>
+
+        <div class="container py-4" th:if="${index} == 'reference'">
+            <main th:insert="~{pages/reference}"></main>
+        </div>
+
+        <div class="container py-4" th:if="${index} == 'news'">
+            <main th:insert="~{pages/news/news}"></main>
+        </div>
+
+        <!-- Пока просто в память браузера в будущем будем на сервер отправлять LAST-->
+        <div class="toast-container position-fixed bottom-0 p-3 d-flex w-100">
+            <div id="cookieToast" class="toast media-width ms-auto rounded-4 overflow-hidden" style="max-width: 500px;" role="alert" aria-live="assertive" aria-atomic="true" data-bs-autohide="false">
+                <!--<div class="toast-header">
+                    <strong class="me-auto font-arimo fs-5">Уведомление о куки</strong>
+                    <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+                </div>-->
+                <div id="cookies-container" class="toast-body bg-white">
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </body>
+<!--    <script type="module" src="/js/func/createCookiesToast.js"></script>-->
+
+    <script src="/fw/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/js/global/tooltip.controller.js"></script>
+</html>

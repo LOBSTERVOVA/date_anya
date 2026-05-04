@@ -1,0 +1,590 @@
+<div class="container py-3" xmlns:th="http://www.thymeleaf.org">
+  <a class="btn btn-link px-0 mb-3" th:href="@{/departments-lecturers}">
+    <i class="bi bi-arrow-left"></i> Назад к списку кафедр
+  </a>
+
+  <h1 id="deptTitle" class="mt-2">Кафедра</h1>
+
+  <div class="row g-4 mt-1">
+    <div class="col-12 col-lg-8">
+      <label class="form-label">Описание</label>
+      <div id="descriptionEditor" class="bg-white border rounded mb-4 roboto-font" style="min-height: 300px;"></div>
+
+<!-- Modal: Edit Lecturer -->
+<div class="modal fade" id="editLecturerModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Редактировать преподавателя</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="row g-2">
+          <div class="col-12 col-md-6">
+            <label class="form-label">Фамилия</label>
+            <input id="editLastName" class="form-control" />
+          </div>
+          <div class="col-12 col-md-6">
+            <label class="form-label">Имя</label>
+            <input id="editFirstName" class="form-control" />
+          </div>
+          <div class="col-12">
+            <label class="form-label">Отчество</label>
+            <input id="editPatronymic" class="form-control" />
+          </div>
+          <div class="col-12 col-md-6">
+            <label class="form-label">Ученое звание</label>
+            <select id="editAcademicTitle" class="form-select">
+              <option value="">— Не указано —</option>
+              <option value="PROFESSOR">Профессор</option>
+              <option value="DOCENT">Доцент</option>
+              <option value="SENIOR_LECTURER">Старший преподаватель</option>
+              <option value="LECTURER">Преподаватель</option>
+              <option value="EDUCATIONAL_METHODOLOGIST">Специалист по учебно-методической работе</option>
+            </select>
+          </div>
+          <div class="col-12 col-md-6">
+            <label class="form-label">Дата рождения</label>
+            <input id="editBirthDate" type="date" class="form-control" />
+          </div>
+          <div class="col-12">
+            <label class="form-label">URL аватарки</label>
+            <input id="editAvatar" type="url" class="form-control" placeholder="https://..." />
+          </div>
+          <div class="col-12">
+            <label class="form-label">Описание</label>
+            <textarea id="editDescription" class="form-control" rows="3" placeholder="Краткая информация о преподавателе"></textarea>
+          </div>
+          <div class="col-12 col-md-6">
+            <label class="form-label">Телефон</label>
+            <input id="editPhone" class="form-control" placeholder="+7 (XXX) XXX-XX-XX" />
+          </div>
+          <div class="col-12 col-md-6">
+            <label class="form-label">Email</label>
+            <input id="editEmail" type="email" class="form-control" placeholder="name@example.com" />
+          </div>
+          <div class="col-12 col-md-6">
+            <label class="form-label">Аудитория</label>
+            <input id="editRoom" class="form-control" placeholder="А-101" />
+          </div>
+          <div class="col-12 col-md-6">
+            <label class="form-label">Учёная степень (строка)</label>
+            <input id="editAcademicDegree" class="form-control" placeholder="к.т.н., д.ф.-м.н..." />
+          </div>
+          <div class="col-12 form-check mt-2">
+            <input id="editLabHead" type="checkbox" class="form-check-input" />
+            <label for="editLabHead" class="form-check-label">Заведующий лабораторией</label>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+        <button type="button" id="editLecturerSaveBtn" class="btn btn-primary">Сохранить</button>
+      </div>
+    </div>
+  </div>
+  </div>
+      <textarea id="description" class="form-control d-none roboto-font" rows="10"></textarea>
+    </div>
+
+    <div class="col-12 col-lg-4">
+      <div class="mb-3">
+        <label for="headSelect" class="form-label">Заведующий кафедрой</label>
+        <select id="headSelect" class="form-select">
+          <option value="">— Не выбран —</option>
+        </select>
+        <div id="headSaveStatus" class="form-text"></div>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label">Состав кафедры <span id="deptLecturersCount" class="badge bg-secondary align-middle"></span></label>
+        <div id="deptLecturersCards" class="d-flex flex-column gap-2"></div>
+      </div>
+
+      <div class="mb-2 d-flex align-items-center justify-content-between">
+        <label class="form-label m-0">Преподаватели</label>
+        <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#createLecturerModal">
+          <i class="bi bi-person-plus"></i> Новый преподаватель
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="mt-5 pt-5 d-flex gap-2">
+    <button id="saveBtn" class="btn btn-primary">Сохранить</button>
+    <a class="btn btn-outline-secondary" th:href="@{/departments-lecturers}">Отмена</a>
+  </div>
+</div>
+
+<!-- Modal: Create Lecturer -->
+<div class="modal fade" id="createLecturerModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Новый преподаватель</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="row g-2">
+          <div class="col-12 col-md-6">
+            <label class="form-label">Фамилия</label>
+            <input id="newLastName" class="form-control" />
+          </div>
+          <div class="col-12 col-md-6">
+            <label class="form-label">Имя</label>
+            <input id="newFirstName" class="form-control" />
+          </div>
+          <div class="col-12">
+            <label class="form-label">Отчество</label>
+            <input id="newPatronymic" class="form-control" />
+          </div>
+          <div class="col-12 col-md-6">
+            <label class="form-label">Ученое звание</label>
+            <select id="newAcademicTitle" class="form-select">
+              <option value="">— Не указано —</option>
+              <option value="PROFESSOR">Профессор</option>
+              <option value="DOCENT">Доцент</option>
+              <option value="SENIOR_LECTURER">Старший преподаватель</option>
+              <option value="LECTURER">Преподаватель</option>
+              <option value="EDUCATIONAL_METHODOLOGIST">Специалист по учебно-методической работе</option>
+            </select>
+          </div>
+          <div class="col-12 col-md-6">
+            <label class="form-label">Дата рождения</label>
+            <input id="newBirthDate" type="date" class="form-control" />
+          </div>
+          <div class="col-12">
+            <label class="form-label">URL аватарки</label>
+            <input id="newAvatar" type="url" class="form-control" placeholder="https://..." />
+          </div>
+          <div class="col-12">
+            <label class="form-label">Описание</label>
+            <textarea id="newDescription" class="form-control" rows="3" placeholder="Краткая информация о преподавателе"></textarea>
+          </div>
+          <div class="col-12 col-md-6">
+            <label class="form-label">Телефон</label>
+            <input id="newPhone" class="form-control" placeholder="+7 (XXX) XXX-XX-XX" />
+          </div>
+          <div class="col-12 col-md-6">
+            <label class="form-label">Email</label>
+            <input id="newEmail" type="email" class="form-control" placeholder="name@example.com" />
+          </div>
+          <div class="col-12 col-md-6">
+            <label class="form-label">Аудитория</label>
+            <input id="newRoom" class="form-control" placeholder="А-101" />
+          </div>
+          <div class="col-12 col-md-6">
+            <label class="form-label">Учёная степень (строка)</label>
+            <input id="newAcademicDegree" class="form-control" placeholder="к.т.н., д.ф.-м.н..." />
+          </div>
+          <div class="col-12 form-check mt-2">
+            <input id="newLabHead" type="checkbox" class="form-check-input" />
+            <label for="newLabHead" class="form-check-label">Заведующий лабораторией</label>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+
+        <button type="button" id="createLecturerBtn" class="btn btn-primary">Создать</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Quill Rich Text Editor -->
+<link href="https://cdn.quilljs.com/1.3.7/quill.snow.css" rel="stylesheet">
+<script src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>
+<!-- Roboto font for editor -->
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  #descriptionEditor .ql-editor { font-family: 'Roboto', Arial, sans-serif !important; font-size: 16px; }
+  #descriptionEditor .ql-toolbar { border-top-left-radius: .375rem; border-top-right-radius: .375rem; }
+  #descriptionEditor .ql-container { border-bottom-left-radius: .375rem; border-bottom-right-radius: .375rem; }
+  .ql-snow .ql-picker.ql-size .ql-picker-label::before,
+  .ql-snow .ql-picker.ql-size .ql-picker-item::before { content: attr(data-value); }
+  .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="16px"]::before { content: '16px'; }
+  /* Font picker labels */
+  .ql-snow .ql-picker.ql-font .ql-picker-label::before,
+  .ql-snow .ql-picker.ql-font .ql-picker-item::before { content: attr(data-value); }
+  /* Font family classes */
+  .ql-font-druk { font-family: 'Druk Kyr', 'Druk', 'Roboto', Arial, sans-serif !important; }
+  .ql-font-roboto { font-family: 'Roboto', Arial, sans-serif !important; }
+  .ql-font-arial { font-family: Arial, Helvetica, sans-serif !important; }
+  .ql-font-times { font-family: 'Times New Roman', Times, serif !important; }
+  .ql-font-monospace { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace !important; }
+</style>
+<script th:inline="javascript">
+  const deptUuid = /*[[${departmentUuid}]]*/ null;
+  let initialDepartment = null;
+  let quill = null;
+
+  function titleCase(str) {
+    if (!str) return '';
+    const lower = str.toLowerCase();
+    return lower.charAt(0).toUpperCase() + lower.slice(1);
+  }
+
+  function saveHeadSelection(){
+    const headSel = document.getElementById('headSelect');
+    const statusEl = document.getElementById('headSaveStatus');
+    if (!headSel) { console.warn('headSelect not found'); return; }
+    const chosen = headSel.value || '';
+    const headUuid = chosen || null;
+    console.log('saveHeadSelection -> headUuid:', headUuid);
+    if (!headUuid){
+      if (statusEl) { statusEl.textContent = 'Заведующий не выбран'; statusEl.className = 'form-text text-muted'; }
+      return;
+    }
+    // UI pending state (не блокируем select, чтобы значение не пропадало визуально)
+    if (statusEl) { statusEl.textContent = 'Сохраняем заведующего...'; statusEl.className = 'form-text text-muted'; }
+    fetch(`/api/lecturer/${headUuid}/make-head`, { method: 'POST' })
+      .then(r => { if (!r.ok) throw new Error('make head failed'); return r.json(); })
+      .then(() => {
+        if (statusEl) { statusEl.textContent = 'Заведующий сохранён'; statusEl.className = 'form-text text-success'; }
+        return loadDepartment();
+      })
+      .catch((e) => {
+        console.error('saveHeadSelection error:', e);
+        if (statusEl) { statusEl.textContent = 'Не удалось сохранить заведующего'; statusEl.className = 'form-text text-danger'; }
+      })
+      .finally(() => {
+        headSel.value = chosen;
+      });
+  }
+
+  // Edit Lecturer Modal logic
+  let editLecturerId = null;
+  function getLecturerFromInitial(uuid){
+    const list = Array.isArray(initialDepartment?.lecturers) ? initialDepartment.lecturers : [];
+    return list.find(l => l.uuid === uuid) || null;
+  }
+
+  function openEditLecturer(uuid){
+    editLecturerId = uuid;
+    const l = getLecturerFromInitial(uuid);
+    console.log(l.lastName)
+    if (!l){ alert('Преподаватель не найден'); return; }
+    document.getElementById('editLastName').value = l.lastName || '';
+    document.getElementById('editFirstName').value = l.firstName || '';
+    document.getElementById('editPatronymic').value = l.patronymic || '';
+    document.getElementById('editAcademicTitle').value = l.academicTitle || '';
+    document.getElementById('editBirthDate').value = l.birthDate || '';
+    document.getElementById('editAvatar').value = l.avatar || '';
+    document.getElementById('editDescription').value = l.description || '';
+    document.getElementById('editPhone').value = l.phone || '';
+    document.getElementById('editEmail').value = l.email || '';
+    document.getElementById('editRoom').value = l.room || '';
+    document.getElementById('editAcademicDegree').value = l.academicDegree || '';
+    document.getElementById('editLabHead').checked = !!l.isLabHead;
+    const modal = new bootstrap.Modal(document.getElementById('editLecturerModal'));
+    modal.show();
+  }
+
+  function deleteLecturer(uuid){
+    if (!confirm('Удалить преподавателя безвозвратно?')) return;
+    fetch(`/api/lecturer/${uuid}`, { method: 'DELETE' }).then(r => {
+      if (!r.ok) throw new Error('delete failed');
+    }).then(() => {
+      // refresh department and eligible lists
+      return Promise.all([loadDepartment(), loadEligible()]);
+    }).catch(() => alert('Не удалось удалить преподавателя'));
+  }
+
+  function renderEligible(eligible){
+    const cont = document.getElementById('lecturersContainer');
+    cont.innerHTML = eligible.map(l => `
+      <div class="form-check">
+        <input class="form-check-input" type="checkbox" value="${l.uuid}" id="lec_${l.uuid}">
+        <label class="form-check-label" for="lec_${l.uuid}">
+          ${[l.lastName,l.firstName,l.patronymic].filter(Boolean).join(' ')}
+        </label>
+      </div>
+    `).join('');
+  }
+
+  function getSelectedLecturers(){
+    return Array.from(document.querySelectorAll('#lecturersContainer input[type=checkbox]:checked')).map(i => i.value);
+  }
+
+  function loadDepartment(){
+    return fetch(`/api/department/${deptUuid}`)
+      .then(r => r.json())
+      .then(data => {
+        initialDepartment = data;
+        const h1 = document.getElementById('deptTitle');
+        h1.textContent = titleCase(data.name || 'Кафедра');
+        // Fill description (TinyMCE will be set later)
+        document.getElementById('description').value = data.description || '';
+
+        // Populate head selector from department lecturers
+        const headSel = document.getElementById('headSelect');
+        const list = Array.isArray(data.lecturers) ? data.lecturers : [];
+        const isHead = (l) => (l && (l.isHead ?? l.head)) === true;
+        // Debug log: list lecturers with head flag
+        try {
+          console.groupCollapsed('Кафедра: преподаватели');
+          list.forEach(l => {
+            const fio = [l.lastName, l.firstName, l.patronymic].filter(Boolean).join(' ');
+            console.log(`${fio} — isHead=${isHead(l)}`);
+          });
+          console.groupEnd();
+        } catch(_) {}
+        headSel.innerHTML = '<option value="">— Не выбран —</option>' + list.map(l => `
+          <option value="${l.uuid}" ${isHead(l) ? 'selected' : ''}>${[l.lastName,l.firstName,l.patronymic].filter(Boolean).join(' ')}</option>
+        `).join('');
+        // ensure current head is reflected in collapsed select UI
+        const currentHead = list.find(x => isHead(x));
+        headSel.value = currentHead ? currentHead.uuid : '';
+        const statusEl = document.getElementById('headSaveStatus');
+        if (statusEl) {
+          statusEl.textContent = currentHead ? 'Текущий заведующий выбран' : 'Заведующий не выбран';
+          statusEl.className = 'form-text ' + (currentHead ? 'text-muted' : 'text-warning');
+        }
+        // attach change handler to save head immediately
+        headSel.onchange = saveHeadSelection;
+
+        // Render ordered department lecturers as cards: heads first, then by title priority
+        const ordered = (() => {
+          const heads = list.filter(x => isHead(x));
+          const headIds = new Set(heads.map(x => x.uuid));
+          const others = list.filter(x => !headIds.has(x.uuid));
+          const priority = { PROFESSOR: 1, DOCENT: 2, SENIOR_LECTURER: 3, LECTURER: 4, EDUCATIONAL_METHODOLOGIST: 5 };
+          const fmt = (l) => [l.lastName, l.firstName && (l.firstName.trim().charAt(0).toUpperCase()+'.'), l.patronymic && (l.patronymic.trim().charAt(0).toUpperCase()+'.')].filter(Boolean).join(' ');
+          others.sort((a,b) => {
+            const pa = priority[a.academicTitle] || 9;
+            const pb = priority[b.academicTitle] || 9;
+            if (pa !== pb) return pa - pb;
+            return fmt(a).localeCompare(fmt(b), 'ru');
+          });
+          return [...heads, ...others];
+        })();
+
+        // Show lecturers count
+        const cntEl = document.getElementById('deptLecturersCount');
+        if (cntEl) cntEl.textContent = (list || []).length;
+
+        const cont = document.getElementById('deptLecturersCards');
+        function nameWithInitials(l){
+          const ln = (l.lastName||'').trim();
+          const fi = l.firstName ? l.firstName.trim().charAt(0).toUpperCase()+'.' : '';
+          const pi = l.patronymic ? l.patronymic.trim().charAt(0).toUpperCase()+'.' : '';
+          return [ln, [fi,pi].filter(Boolean).join('')].filter(Boolean).join(' ');
+        }
+        function initialsOnly(l){
+          const f = l.firstName ? l.firstName.trim().charAt(0).toUpperCase() : '';
+          const p = l.patronymic ? l.patronymic.trim().charAt(0).toUpperCase() : '';
+          const lni = l.lastName ? l.lastName.trim().charAt(0).toUpperCase() : '';
+          return (lni+f) || p || '?';
+        }
+        function roleBadge(l){
+          if (isHead(l)) return '<span class="badge bg-danger ms-auto fw-normal fs-5">Зав.</span>';
+          if (l.academicTitle === 'PROFESSOR') return '<span class="badge bg-primary ms-auto fw-normal fs-5">Проф.</span>';
+          if (l.academicTitle === 'DOCENT') return '<span class="badge bg-secondary ms-auto fw-normal fs-5">Доц.</span>';
+          if (l.academicTitle === 'SENIOR_LECTURER') return '<span class="badge bg-info text-dark ms-auto fw-normal fs-5">Ст. преп.</span>';
+          if (l.academicTitle === 'LECTURER') return '<span class="badge bg-light text-dark ms-auto fw-normal fs-5">Преп.</span>';
+          if (l.academicTitle === 'EDUCATIONAL_METHODOLOGIST') return '<span class="badge bg-warning text-dark ms-auto fw-normal fs-5">Методист</span>';
+          return '';
+        }
+        cont.innerHTML = ordered.map(l => {
+          const avatar = (l.avatar||'').trim();
+          const avatarEl = avatar
+            ? `<img src="${avatar}" alt="avatar" class="rounded-circle object-fit-cover" style="width:42px;height:42px;">`
+            : `<div class="rounded-circle bg-secondary text-white d-flex align-items-center justify-content-center" style="width:42px;height:42px;">${initialsOnly(l)}</div>`;
+          return `
+            <div class="d-flex align-items-center gap-2 p-2 border rounded-3">
+              ${avatarEl}
+              <div class="d-flex align-items-center w-100">
+                <div class="small fw-normal fs-4">${nameWithInitials(l)}</div>
+                ${roleBadge(l)}
+                <div class="ms-2 btn-group btn-group-sm">
+                  <button type="button" class="btn btn-outline-secondary" title="Редактировать" onclick="openEditLecturer('${l.uuid}')"><i class="bi bi-pencil"></i></button>
+                  <button type="button" class="btn btn-outline-danger" title="Удалить" onclick="deleteLecturer('${l.uuid}')"><i class="bi bi-trash"></i></button>
+                </div>
+              </div>
+            </div>`;
+        }).join('') || '<div class="text-muted small">—</div>';
+      });
+  }
+
+  function loadEligible(){
+    return fetch('/api/lecturer/eligible')
+      .then(r => r.json())
+      .then(list => { renderEligible(list); });
+  }
+  function initQuill(){
+    const Size = Quill.import('attributors/style/size');
+    Size.whitelist = ['12px','14px','16px','18px','20px','24px','28px','32px'];
+    Quill.register(Size, true);
+
+    // Enable font picker with a whitelist
+    const Font = Quill.import('attributors/class/font');
+    Font.whitelist = ['roboto','arial','times','monospace'];
+    Quill.register(Font, true);
+
+    quill = new Quill('#descriptionEditor', {
+      theme: 'snow',
+      modules: {
+        toolbar: [
+          [{ header: [1, 2, 3, false] }],
+          [{ font: Font.whitelist }],
+          [{ size: Size.whitelist }],
+          ['bold', 'italic', 'underline'],
+          [{ list: 'ordered' }, { list: 'bullet' }],
+          [{ align: [] }],
+          ['link', 'clean']
+        ]
+      }
+    });
+
+    // Set default font to 'druk'
+    quill.format('font', 'druk');
+  }
+
+  function save(){
+    const headUuid = document.getElementById('headSelect').value || null;
+    const selected = new Set(getSelectedLecturers());
+    const description = quill ? quill.root.innerHTML : document.getElementById('description').value;
+
+    // Start with existing department lecturers
+    const current = Array.isArray(initialDepartment?.lecturers) ? initialDepartment.lecturers : [];
+    const map = new Map();
+    current.forEach(l => { if (l.uuid) map.set(l.uuid, { uuid: l.uuid, isHead: false }); });
+    // Add newly selected eligible
+    selected.forEach(uuid => { map.set(uuid, { uuid, isHead: false }); });
+    // Mark head
+    if (headUuid) {
+      if (map.has(headUuid)) map.get(headUuid).isHead = true; else map.set(headUuid, { uuid: headUuid, isHead: true });
+    }
+    const lecturers = Array.from(map.values());
+
+    const payload = {
+      uuid: deptUuid,
+      name: initialDepartment?.name || null,
+      description: description,
+      rooms: initialDepartment?.rooms || [],
+      lecturers: lecturers
+    };
+
+    fetch(`/api/department/${deptUuid}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    }).then(r => {
+      if (!r.ok) throw new Error('save failed');
+      return r.json();
+    }).then(() => {
+      // After save, reload eligible list to reflect assignments
+      return loadEligible();
+    }).then(() => {
+      const toastCont = document.getElementById('info-toast');
+      if (toastCont) {
+        const el = document.createElement('div');
+        el.className = 'toast show bg-success text-white p-3 rounded-3';
+        el.textContent = 'Сохранено';
+        toastCont.appendChild(el);
+        setTimeout(() => el.remove(), 2500);
+      }
+    }).catch(() => {
+      alert('Не удалось сохранить изменения');
+    });
+  }
+
+  function saveEditLecturer(){
+    if (!editLecturerId) return;
+    const lastName = document.getElementById('editLastName').value.trim();
+    const firstName = document.getElementById('editFirstName').value.trim();
+    const patronymic = document.getElementById('editPatronymic').value.trim();
+    const academicTitle = document.getElementById('editAcademicTitle').value || null;
+    const birthDate = document.getElementById('editBirthDate').value || null;
+    const avatar = document.getElementById('editAvatar').value || null;
+    const description = document.getElementById('editDescription').value || null;
+    const phone = document.getElementById('editPhone').value || null;
+    const email = document.getElementById('editEmail').value || null;
+    const room = document.getElementById('editRoom').value || null;
+    const academicDegree = document.getElementById('editAcademicDegree').value || null;
+    const labHead = !!document.getElementById('editLabHead').checked;
+    if (!lastName || !firstName){ alert('Укажите имя и фамилию'); return; }
+    fetch(`/api/lecturer/${editLecturerId}`,{
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ lastName, firstName, patronymic, academicTitle, birthDate, avatar, description, phone, email, room, academicDegree, isLabHead: labHead })
+    }).then(r => {
+      if (!r.ok) throw new Error('update failed');
+      return r.json();
+    }).then(() => {
+      const modalEl = document.getElementById('editLecturerModal');
+      bootstrap.Modal.getInstance(modalEl).hide();
+      editLecturerId = null;
+      return loadDepartment();
+    }).catch(() => alert('Не удалось сохранить изменения преподавателя'));
+  }
+
+  function createLecturer(){
+    const lastName = document.getElementById('newLastName').value.trim();
+    const firstName = document.getElementById('newFirstName').value.trim();
+    const patronymic = document.getElementById('newPatronymic').value.trim();
+    const academicTitle = document.getElementById('newAcademicTitle').value || null;
+    const birthDate = document.getElementById('newBirthDate').value || null; // yyyy-MM-dd
+    const avatar = document.getElementById('newAvatar').value || null;
+    const description = document.getElementById('newDescription').value || null;
+    const phone = document.getElementById('newPhone').value || null;
+    const email = document.getElementById('newEmail').value || null;
+    const room = document.getElementById('newRoom').value || null;
+    const academicDegree = document.getElementById('newAcademicDegree').value || null;
+    const labHead = !!document.getElementById('newLabHead').checked;
+    if (!lastName || !firstName){
+      alert('Укажите имя и фамилию');
+      return;
+    }
+    fetch('/api/lecturer',{
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ lastName, firstName, patronymic, academicTitle, birthDate, avatar, description, phone, email, room, academicDegree, isLabHead: labHead, department: { uuid: deptUuid } })
+    }).then(r=>{
+      if (!r.ok) throw new Error('create failed');
+      return r.json();
+    }).then(()=>{
+      // refresh eligible list
+      return loadEligible();
+    }).then(()=>{
+      // close modal
+      const modalEl = document.getElementById('createLecturerModal');
+      const modal = bootstrap.Modal.getInstance(modalEl);
+      modal.hide();
+      document.getElementById('newLastName').value = '';
+      document.getElementById('newFirstName').value = '';
+      document.getElementById('newPatronymic').value = '';
+      document.getElementById('newAcademicTitle').value = '';
+      document.getElementById('newBirthDate').value = '';
+      document.getElementById('newAvatar').value = '';
+      document.getElementById('newDescription').value = '';
+      document.getElementById('newPhone').value = '';
+      document.getElementById('newEmail').value = '';
+      document.getElementById('newRoom').value = '';
+      document.getElementById('newAcademicDegree').value = '';
+      document.getElementById('newLabHead').checked = false;
+      // reload department to refresh head selector and display list
+      return loadDepartment();
+    }).catch(()=>{
+      alert('Не удалось создать преподавателя');
+    })
+  }
+
+  document.addEventListener('DOMContentLoaded', function(){
+    initQuill();
+    Promise.all([loadDepartment(), loadEligible()]).then(()=>{
+      // после загрузки данных поместим описание в Quill
+      const txt = document.getElementById('description').value || '';
+      if (quill) quill.root.innerHTML = txt;
+    });
+    document.getElementById('saveBtn').addEventListener('click', save);
+    document.getElementById('createLecturerBtn').addEventListener('click', createLecturer);
+    document.getElementById('editLecturerSaveBtn').addEventListener('click', saveEditLecturer);
+    const headSel = document.getElementById('headSelect');
+    if (headSel) {
+      headSel.addEventListener('change', saveHeadSelection);
+      console.log('headSelect change handler attached');
+    }
+  });
+</script>

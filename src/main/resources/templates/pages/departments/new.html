@@ -1,0 +1,116 @@
+<div class="container py-3" xmlns:th="http://www.thymeleaf.org">
+  <a class="btn btn-link px-0 mb-3" th:href="@{/departments-lecturers}">
+    <i class="bi bi-arrow-left"></i> Назад к списку кафедр
+  </a>
+
+  <h1 class="mt-2">Новая кафедра</h1>
+
+  <div class="row g-4 mt-1">
+    <div class="col-12 col-lg-6">
+      <label class="form-label">Название кафедры</label>
+      <input id="depName" class="form-control" placeholder="Введите название" />
+    </div>
+  </div>
+
+  <div class="row g-4 mt-1">
+    <div class="col-12">
+      <label class="form-label">Описание</label>
+      <div id="descriptionEditor" class="bg-white border rounded mb-4 roboto-font" style="min-height: 300px;"></div>
+      <textarea id="description" class="form-control d-none roboto-font" rows="10"></textarea>
+    </div>
+  </div>
+
+  <div class="mt-5 d-flex gap-2 pt-5">
+    <button id="createDepBtn" class="btn btn-success btn-lg">Сохранить кафедру</button>
+    <a class="btn btn-outline-secondary" th:href="@{/departments-lecturers}">Отмена</a>
+  </div>
+</div>
+
+<!-- Quill Rich Text Editor -->
+<link href="https://cdn.quilljs.com/1.3.7/quill.snow.css" rel="stylesheet">
+<script src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>
+<!-- Roboto font -->
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  #descriptionEditor .ql-editor { font-family: 'Roboto', Arial, sans-serif !important; font-size: 16px; }
+  #descriptionEditor .ql-toolbar { border-top-left-radius: .375rem; border-top-right-radius: .375rem; }
+  #descriptionEditor .ql-container { border-bottom-left-radius: .375rem; border-bottom-right-radius: .375rem; }
+  /* Show numeric size labels in size picker */
+  .ql-snow .ql-picker.ql-size .ql-picker-label::before,
+  .ql-snow .ql-picker.ql-size .ql-picker-item::before { content: attr(data-value); font-family: 'Roboto', Arial, sans-serif; }
+  .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="16px"]::before { content: '16px'; }
+  /* Font picker labels */
+  .ql-snow .ql-picker.ql-font .ql-picker-label::before,
+  .ql-snow .ql-picker.ql-font .ql-picker-item::before { content: attr(data-value); }
+  /* Font family classes */
+  .ql-font-druk { font-family: 'Druk Kyr', 'Druk', 'Roboto', Arial, sans-serif !important; }
+  .ql-font-roboto { font-family: 'Roboto', Arial, sans-serif !important; }
+  .ql-font-arial { font-family: Arial, Helvetica, sans-serif !important; }
+  .ql-font-times { font-family: 'Times New Roman', Times, serif !important; }
+  .ql-font-monospace { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace !important; }
+</style>
+<script>
+  let quill = null;
+
+  function initQuill(){
+    // Allow font sizes
+    const Size = Quill.import('attributors/style/size');
+    Size.whitelist = ['12px','14px','16px','18px','20px','24px','28px','32px'];
+    Quill.register(Size, true);
+
+    // Enable font picker with a whitelist (including 'druk')
+    const Font = Quill.import('attributors/class/font');
+    Font.whitelist = ['druk','roboto','arial','times','monospace'];
+    Quill.register(Font, true);
+
+    quill = new Quill('#descriptionEditor', {
+      theme: 'snow',
+      modules: {
+        toolbar: [
+          [{ header: [1, 2, 3, false] }],
+          [{ font: Font.whitelist }],
+          [{ size: Size.whitelist }],
+          ['bold', 'italic', 'underline'],
+          [{ list: 'ordered' }, { list: 'bullet' }],
+          [{ align: [] }],
+          ['link', 'clean']
+        ]
+      }
+    });
+
+    // Set default font to 'druk' if available
+    quill.format('font', 'druk');
+  }
+
+  function createDepartment(){
+    const name = (document.getElementById('depName').value || '').trim();
+    if (!name){
+      alert('Укажите название кафедры');
+      return;
+    }
+    const description = quill ? quill.root.innerHTML : '';
+
+    fetch('/api/department',{
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, description, rooms: [] })
+    }).then(r=>{
+      if (!r.ok) throw new Error('create failed');
+      return r.json();
+    }).then(dep=>{
+      // Переходим на страницу редактирования
+      if (dep && dep.uuid){
+        window.location.href = `/departments/${dep.uuid}/edit`;
+      } else {
+        window.location.href = '/departments-lecturers';
+      }
+    }).catch(()=>{
+      alert('Не удалось создать кафедру');
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', function(){
+    initQuill();
+    document.getElementById('createDepBtn').addEventListener('click', createDepartment);
+  });
+</script>
