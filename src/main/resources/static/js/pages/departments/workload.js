@@ -2,7 +2,8 @@
  * Страница нагрузка-часов преподавателей
  */
 (function () {
-  const deptSelect = document.getElementById('wlDept');
+  const deptInput = document.getElementById('wlDept');
+  const deptDropdown = document.getElementById('wlDeptDropdown');
   const fromInput = document.getElementById('wlFrom');
   const toInput = document.getElementById('wlTo');
   const applyBtn = document.getElementById('wlApply');
@@ -16,23 +17,60 @@
   toInput.value = now.toISOString().slice(0, 10);
 
   let allDepartments = [];
+  let selectedDeptUuid = null;
 
   /* --- Инициализация --- */
   async function init() {
     try {
       const resp = await fetch('/api/department');
-      allDepartments = await resp.json();
-      deptSelect.innerHTML = '<option value="">— Выберите кафедру —</option>' +
-        allDepartments.map(d => `<option value="${d.uuid}">${d.name}</option>`).join('');
+      allDepartments = (await resp.json())
+        .sort((a, b) => a.name.localeCompare(b.name, 'ru'));
     } catch (e) {
-      deptSelect.innerHTML = '<option value="">Ошибка загрузки</option>';
+      deptDropdown.innerHTML = '<div class="dropdown-item text-muted">Ошибка загрузки</div>';
     }
   }
 
+  function populateDropdown(q) {
+    const search = q.toLowerCase();
+    const filtered = allDepartments.filter(d =>
+      d.name.toLowerCase().includes(search)
+    );
+    deptDropdown.innerHTML = '';
+    if (!filtered.length) {
+      deptDropdown.innerHTML = '<div class="dropdown-item text-muted py-2 px-3">Кафедры не найдены</div>';
+      deptDropdown.classList.remove('show');
+      return;
+    }
+    filtered.forEach(d => {
+      const el = document.createElement('div');
+      el.className = 'dropdown-item py-2 px-3 text-wrap';
+      el.textContent = d.name;
+      el.addEventListener('click', () => {
+        deptInput.value = d.name;
+        selectedDeptUuid = d.uuid;
+        deptDropdown.classList.remove('show');
+      });
+      deptDropdown.appendChild(el);
+    });
+    deptDropdown.classList.add('show');
+  }
+
+  deptInput.addEventListener('input', () => {
+    populateDropdown(deptInput.value);
+  });
+  deptInput.addEventListener('focus', () => {
+    if (allDepartments.length) populateDropdown(deptInput.value);
+  });
+  // Скрываем дропдаун при клике вне
+  document.addEventListener('click', (e) => {
+    if (!deptInput.contains(e.target) && !deptDropdown.contains(e.target)) {
+      deptDropdown.classList.remove('show');
+    }
+  });
+
   /* --- Применить --- */
   async function loadWorkload() {
-    const deptUuid = deptSelect.value;
-    if (!deptUuid) { summaryEl.textContent = 'Выберите кафедру'; return; }
+    if (!selectedDeptUuid) { summaryEl.textContent = 'Выберите кафедру'; return; }
 
     const from = fromInput.value;
     const to = toInput.value;
@@ -42,7 +80,7 @@
     applyBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Загрузка...';
 
     try {
-      const resp = await fetch(`/api/lecturer/workload?departmentUuid=${deptUuid}&from=${from}&to=${to}`);
+      const resp = await fetch(`/api/lecturer/workload?departmentUuid=${selectedDeptUuid}&from=${from}&to=${to}`);
       const data = await resp.json();
       renderCards(data || []);
       summaryEl.textContent = `Найдено преподавателей: ${(data || []).length}`;

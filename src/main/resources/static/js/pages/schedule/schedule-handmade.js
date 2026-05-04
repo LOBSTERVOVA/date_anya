@@ -589,11 +589,15 @@ async function init() {
             }
         }
         function initModalRooms(q) {
-            console.log('firstLoadedRoom: ')
-            console.log(loadedRooms[0]);
-            console.log(weekPairs[0]);
+            const natCmp = (a, b) => {
+                const numA = parseInt(a.title, 10), numB = parseInt(b.title, 10);
+                if (!isNaN(numA) && !isNaN(numB)) return numA - numB || a.title.localeCompare(b.title, 'ru');
+                return a.title.localeCompare(b.title, 'ru');
+            };
             let freeRooms = weekPairs.length > 0 ? loadedRooms.filter(r => !weekPairs.some(p => p.room && p.room.uuid === r.uuid && p.date === dateToIso(date) && p.pairOrder === pairPosition && !(pair && p.uuid === pair.uuid))).filter(r => r.title.toLowerCase().includes(q.toLowerCase())) : loadedRooms;
-            let busyRooms = weekPairs.length > 0 ?loadedRooms.filter(r => weekPairs.some(p => p.room && p.room.uuid === r.uuid && p.date === dateToIso(date) && p.pairOrder === pairPosition && !(pair && p.uuid === pair.uuid))).filter(r => r.title.toLowerCase().includes(q.toLowerCase())) : [];
+            let busyRooms = weekPairs.length > 0 ? loadedRooms.filter(r => weekPairs.some(p => p.room && p.room.uuid === r.uuid && p.date === dateToIso(date) && p.pairOrder === pairPosition && !(pair && p.uuid === pair.uuid))).filter(r => r.title.toLowerCase().includes(q.toLowerCase())) : [];
+            freeRooms.sort(natCmp);
+            busyRooms.sort(natCmp);
             console.log(`свободно комнат: ${freeRooms.length}; занято комнат: ${busyRooms.length}`)
             let $roomsDd = $('#pair-room-dropdown')
             $roomsDd.empty();
@@ -735,9 +739,9 @@ async function init() {
                             `);
                         } else {
                             $groupsContainer.append(`
-                                <div class="form-check ms-5" data-group-uuid="${group.uuid}">
+                                <div class="form-check ms-5 mb-1" data-group-uuid="${group.uuid}">
                                     <input class="form-check-input" type="checkbox" id="grp-${group.uuid}">
-                                    <label class="form-check-label" for="grp-${group.uuid}">${group.groupName}</label>
+                                    <label class="form-check-label" for="grp-${group.uuid}"><b>${group.groupName}</b> ${group.specialization.length > 1 ? '— ' + group.specialization : ''} ${Array.from(group.kindsOfSports).join(', ').length > 0 ? '— ' + Array.from(group.kindsOfSports).join(', ') : ''} ${group.direction.length > 1 ? '— ' + group.direction : ''}</label>
                                 </div>
                             `);
                         }

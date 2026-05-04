@@ -248,23 +248,34 @@
 
 
 #schedule-page #schedule-grid-table{
-  table-layout: fixed;
+  table-layout: fixed !important;
   width: auto !important;
   max-width: none;
 }
 
 #schedule-page #schedule-grid-table td {
-  min-width: 0;
+  min-width: 0 !important;
+  overflow: hidden;
 }
 
 #schedule-page #schedule-grid-table td .row {
   min-width: 0;
+  width: 100%;
 }
 
 #schedule-page #schedule-grid-table td .col-12 {
-  min-width: 0;
+  min-width: 0 !important;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#schedule-page #schedule-grid-table td .col-12.text-primary {
+  white-space: normal;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  line-clamp: 2;
 }
 
 #schedule-grid {
@@ -285,13 +296,10 @@
 /* Название предмета — макс 2 строки, остальное троеточие */
 .lesson-cell {
   overflow: hidden;
+  word-break: break-word;
 }
-.lesson-cell .text-primary {
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  line-clamp: 2;
+.lesson-cell .row {
+  min-width: 0;
 }
 
 /* Фикс чекбоксов в модалке — чтобы не превращались в точки */
@@ -300,4 +308,29 @@
   height: 1em;
   margin-top: .25em;
   appearance: auto;
+}
+
+/* ----- Sticky-шапка таблицы (клон заголовков при скролле) ----- */
+#sticky-header-clone {
+  position: fixed;
+  top: 72px; /* высота fixed-хедера */
+  left: 0;
+  right: 0;
+  z-index: 1019;
+  overflow-x: hidden; /* скролл синхронизируется через JS */
+  display: none;
+  background: #f8f9fa; /* table-light */
+  border-bottom: 2px solid #dee2e6;
+}
+#sticky-header-clone.visible {
+  display: block;
+}
+#sticky-header-clone table {
+  margin: 0;
+  table-layout: fixed !important;
+  width: auto !important;
+  max-width: none;
+}
+#sticky-header-clone th {
+  border-color: var(--pair-border);
 }

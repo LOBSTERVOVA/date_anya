@@ -11,7 +11,10 @@
       <div class="row g-3 align-items-end">
         <div class="col-12 col-md-4">
           <label class="form-label small fw-semibold">Кафедра</label>
-          <select id="wlDept" class="form-select"></select>
+          <div class="position-relative">
+            <input id="wlDept" type="text" class="form-control" placeholder="Начните вводить название..." autocomplete="off" />
+            <div id="wlDeptDropdown" class="dropdown-menu w-100 shadow" style="max-height: 260px; overflow-y: auto;"></div>
+          </div>
         </div>
         <div class="col-6 col-md-3">
           <label class="form-label small fw-semibold">С</label>
