@@ -269,6 +269,15 @@
   overflow-y: auto;
 }
 
+/* Название предмета — макс 2 строки, остальное троеточие */
+.lesson-cell .text-primary {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  line-clamp: 2;
+}
+
 /* Фикс чекбоксов в модалке — чтобы не превращались в точки */
 #pair-groups-list .form-check-input {
   width: 1em;

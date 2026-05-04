@@ -220,8 +220,7 @@ async function init() {
         weekPairs = await fetchWeekPairsBatch(dateToIso(weekStart));
         window.weekPairs = weekPairs;
 
-        const daysOfWeek = ['Воскресенье', 'Понедельник', 'Вторник', 'Среда',
-            'Четверг', 'Пятница', 'Суббота'];
+        const daysOfWeek = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
 
         console.log('weekStart: ' + weekStart)
         // даты для дней недели
@@ -249,7 +248,7 @@ async function init() {
             const deptLecturers = loadedLecturers.filter(l => l.department.uuid === dept.uuid)
             console.log("dep: " + dept.name + " lecturers: " + deptLecturers.length)
             deptLecturers.forEach(l => {
-                $headerRow.append(`<th class="text-center overflow-hidden no-select p-0">${formatLectFio(l)}</th>`);
+                $headerRow.append(`<th class="text-center overflow-hidden no-select p-0" style="font-size:0.75rem">${formatLectFio(l)}</th>`);
             })
             $headerRow.append(`<th class="bg-secondary"></th>`);
         });
@@ -274,18 +273,18 @@ async function init() {
                 // Колонка дня (только для первой пары)
                 if (lessonIndex === 0) {
                     $row.append(`
-                        <td rowspan="${lessons.length}" class="align-middle text-center p-1">
+                        <td rowspan="${lessons.length}" class="align-middle text-center p-1" style="font-size:0.8rem;width:55px;min-width:55px;max-width:55px">
                             <strong>${day.name}</strong><br>
-                            <small class="text-muted">${day.dateString}</small>
+                            <small class="text-muted" style="font-size:0.65rem">${day.dateString}</small>
                         </td>
                     `);
                 }
 
                 // Колонка номера пары и времени
                 $row.append(`
-                    <td class="text-center p-1" style="min-width: 86px; max-width: 86px; min-height: 40px; max-height: 70px;">
+                    <td class="text-center p-1" style="min-width: 56px; max-width: 56px; min-height: 40px; max-height: 70px; font-size:0.7rem;">
                         <strong>${lessonIndex + 1} пара</strong><br>
-                        <small class="text-muted">${time}</small>
+                        <small class="text-muted" style="font-size:0.6rem">${time}</small>
                     </td>
                 `);
 
@@ -294,8 +293,8 @@ async function init() {
                     const deptLecturers = loadedLecturers.filter(l => l.department.uuid === dept.uuid)
                     deptLecturers.forEach(l => {
                         const $cell = $(`
-                            <td class="lesson-cell p-1" 
-                                data-bs-toggle="modal" 
+                            <td class="lesson-cell p-1 position-relative"
+                                data-bs-toggle="modal"
                                 data-bs-target="#pair-modal"
                                 data-day="${dayIndex}" 
                                 data-lesson="${lessonIndex}"
@@ -335,6 +334,7 @@ async function init() {
 
         await renderWeekPairs()
         makeTableResizable();
+        if (typeof renderRoomsTable === 'function') renderRoomsTable(weekPairs, loadedRooms);
     }
 
     async function renderWeekPairs() {
@@ -342,17 +342,20 @@ async function init() {
         weekPairs.forEach(pair => {
             pair.lecturers?.forEach(lecturer => {
                 let newDate = new Date(pair.date)
+                const isLecture = pair.type === 'LECTURE';
+                const typeBadge = `<span class="badge ${isLecture ? 'bg-primary' : 'bg-success'} position-absolute top-0 end-0 m-1 fw-normal" style="font-size:.6rem;">${isLecture ? 'Л' : 'П'}</span>`;
                 console.log(`#${newDate.getFullYear()}-${newDate.getMonth()}-${newDate.getDate()}-${pair.pairOrder}-${lecturer.uuid}`)
                 $(`#${newDate.getFullYear()}-${newDate.getMonth()}-${newDate.getDate()}-${pair.pairOrder}-${lecturer.uuid}`)
                     .html(`
+                        ${typeBadge}
                         <div class="row d-flex" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Кубок России">
-                            <div class="col-12 text-primary">
+                            <div class="col-12 text-primary" style="font-size:0.75rem">
                                 ${pair.subject?.name}
                             </div>
-                            <div class="col-12 fs-6">
+                            <div class="col-12" style="font-size:0.7rem">
                                 Групп: ${pair.groups.length}
                             </div>
-                            <div class="col-12 text-muted fs-7">
+                            <div class="col-12 text-muted" style="font-size:0.6rem">
                                 Преподавателей: ${pair.lecturers.length}
                             </div>
                         </div>
@@ -369,15 +372,18 @@ async function init() {
         let selectedSubject = pair ? pair.subject : null;
         let selectedRoom = pair ? pair.room : null;
         let selectedLecturers = pair ? loadedLecturers.filter(l => pair.lecturers.some(pl => pl.uuid === l.uuid)) : [clickedLecturer]
+        let selectedGroupUuids = new Set(pair?.groups ? pair.groups.map(g => g.uuid) : []);
         let filteredLecturers = loadedLecturers.filter(l => l.department.uuid === department.uuid)
 
         // Предзаполняем если редактируем
         if (pair) {
             $('#pair-name').val(pair.subject?.name || '');
             if (pair.room) $('#pair-room-search').val(pair.room.title || pair.room.name || '');
+            $(`input[name="pairType"][value="${pair.type || 'PRACTICE'}"]`).prop('checked', true);
         } else {
             $('#pair-name').val('');
             $('#pair-room-search').val('');
+            $('#type-practice').prop('checked', true);
         }
 
         // Кнопка удаления: показываем только при редактировании
@@ -429,6 +435,18 @@ async function init() {
             initModalGroups($('#pair-groups-search').val() || '');
         })
 
+        // Синхронизация чекбоксов групп с selectedGroupUuids
+        $(document).off('change', '#pair-groups-list input[type="checkbox"]').on('change', '#pair-groups-list input[type="checkbox"]', function () {
+            const uuid = $(this).closest('[data-group-uuid]').data('group-uuid');
+            if (!uuid) return;
+            if (this.checked) {
+                selectedGroupUuids.add(uuid);
+            } else {
+                selectedGroupUuids.delete(uuid);
+            }
+            renderGroupChips();
+        });
+
         // Сохранение
         $('#pair-save').off('click').on('click', async function () {
             if (!selectedSubject) { showToast('Выберите предмет', 'warning'); return; }
@@ -436,11 +454,7 @@ async function init() {
 
             const roomUuid = selectedRoom?.uuid || null;
             const lecturerUuids = selectedLecturers.map(l => l.uuid);
-            const groupUuids = [];
-            $('#pair-groups-list input[type="checkbox"]:checked').each(function () {
-                const uuid = $(this).closest('[data-group-uuid]').data('group-uuid');
-                if (uuid) groupUuids.push(uuid);
-            });
+            const groupUuids = [...selectedGroupUuids];
 
             // Валидация по weekPairs (исключаем саму себя при редактировании)
             const dateIso = dateToIso(date);
@@ -482,7 +496,8 @@ async function init() {
                 date: dateIso,
                 roomUuid,
                 lecturerUuids,
-                groupUuids
+                groupUuids,
+                type: $('input[name="pairType"]:checked').val() || 'PRACTICE'
             };
 
             try {
@@ -594,6 +609,31 @@ async function init() {
             })
         }
 
+        function renderGroupChips() {
+            const $cont = $('#modal-groups-container');
+            $cont.empty();
+            if (!selectedGroupUuids.size) {
+                $cont.html('<div class="text-muted small">Выбранные группы появятся здесь</div>');
+                return;
+            }
+            selectedGroupUuids.forEach(uuid => {
+                const g = loadedGroups.find(gg => gg.uuid === uuid);
+                const name = g ? (g.groupName || g.name || uuid) : uuid;
+                const $chip = $(`
+                    <span class="badge bg-success me-2 mb-2 p-2 d-inline-flex align-items-center group-chip">
+                        ${name}
+                        <button type="button" class="btn-close btn-close-white ms-2" style="font-size:.5em;" aria-label="Удалить"></button>
+                    </span>
+                `);
+                $chip.find('.btn-close').on('click', function () {
+                    selectedGroupUuids.delete(uuid);
+                    $(`#grp-${uuid}`).prop('checked', false);
+                    renderGroupChips();
+                });
+                $cont.append($chip);
+            });
+        }
+
         function initModalGroups(q) {
             const showBusy = $('#show-busy-groups').is(':checked');
 
@@ -662,12 +702,11 @@ async function init() {
                 });
             });
 
-            // Отмечаем уже выбранные группы (если редактируем)
-            if (pair?.groups) {
-                pair.groups.forEach(g => {
-                    $(`#grp-${g.uuid}`).prop('checked', true);
-                });
-            }
+            // Восстанавливаем чекбоксы из состояния (переживают перерисовку)
+            selectedGroupUuids.forEach(uuid => {
+                $(`#grp-${uuid}`).prop('checked', true);
+            });
+            renderGroupChips();
         }
 
     }
@@ -715,6 +754,44 @@ async function init() {
             if (dragging) e.preventDefault();
         });
     }
+
+    // --- Утверждение расписания ---
+    $('#approve-schedule-btn').on('click', function () {
+        const $list = $('#approve-dept-list');
+        $list.empty();
+        loadedDepartments.forEach(d => {
+            $list.append(`
+                <div class="form-check">
+                    <input class="form-check-input approve-dept-cb" type="checkbox" value="${d.uuid}" id="appr-${d.uuid}" />
+                    <label class="form-check-label" for="appr-${d.uuid}">${d.name}</label>
+                </div>
+            `);
+        });
+        $('#approve-select-all').prop('checked', false);
+        new bootstrap.Modal(document.getElementById('approveScheduleModal')).show();
+    });
+
+    $('#approve-select-all').on('change', function () {
+        $('.approve-dept-cb').prop('checked', this.checked);
+    });
+
+    $('#approve-confirm-btn').on('click', async function () {
+        const uuids = $('.approve-dept-cb:checked').map(function () { return $(this).val(); }).get();
+        if (!uuids.length) { showToast('Выберите хотя бы одну кафедру', 'warning'); return; }
+        try {
+            const resp = await $.ajax({
+                url: '/api/pair/approve',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({ departmentUuids: uuids })
+            });
+            bootstrap.Modal.getInstance(document.getElementById('approveScheduleModal')).hide();
+            showToast(`Утверждено пар: ${resp}`, 'success');
+            await renderTable();
+        } catch (e) {
+            showToast('Ошибка утверждения: ' + (e.responseJSON?.message || e.statusText), 'danger');
+        }
+    });
 
     console.log('init COMPLETE');
     console.log('Ready for work - departments:', loadedDepartments.length, 'rooms:', loadedRooms.length);

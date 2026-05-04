@@ -1,6 +1,7 @@
 package com.example.rusreact2.data.models;
 
 import com.example.rusreact2.data.enums.AcademicTitle;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.springframework.data.annotation.Id;
@@ -28,6 +29,7 @@ public class Lecturer {
     LocalDate birthDate;
     AcademicTitle academicTitle;
     @Column(value = "is_head")
+    @JsonProperty("isHead")
     boolean isHead = false;
     @Column(value = "closest_lesson")
     LocalDate closestLesson;
@@ -37,6 +39,7 @@ public class Lecturer {
     String room;
     String academicDegree;
     @Column(value = "is_lab_head")
+    @JsonProperty("isLabHead")
     boolean labHead = false;
 
     private UUID departmentUuid;

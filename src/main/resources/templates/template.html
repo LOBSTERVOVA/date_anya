@@ -56,6 +56,10 @@
             <main th:insert="~{pages/departments/new}"></main>
         </div>
 
+        <div class="container py-4" th:if="${index} == 'workload'">
+            <main th:insert="~{pages/departments/workload}"></main>
+        </div>
+
         <div class="container py-4" th:if="${index} == 'community-sports-sections'">
             <main th:insert="~{pages/community/sports-sections}"></main>
         </div>

@@ -1,0 +1,48 @@
+/* === Нагрузка-часы === */
+
+.wl-header {
+  background: linear-gradient(135deg, #1e3a5f 0%, #2563eb 100%);
+  border-radius: 1rem;
+  padding: 2rem;
+  margin-bottom: 1.5rem;
+  color: #fff;
+}
+
+.wl-card {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 1rem;
+  padding: 1.25rem;
+  transition: box-shadow .15s;
+}
+.wl-card:hover {
+  box-shadow: 0 4px 16px rgba(0,0,0,.08);
+}
+
+.wl-card .wl-avatar {
+  width: 52px; height: 52px;
+  border-radius: 50%;
+  background: #eff6ff;
+  color: #2563eb;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 1.1rem;
+  flex-shrink: 0;
+}
+
+.wl-card .wl-total {
+  font-size: 1.05rem;
+  color: #1f2937;
+  padding: .5rem .75rem;
+  background: #f9fafb;
+  border-radius: .5rem;
+}
+
+.wl-card .wl-subjects {
+  display: flex; flex-direction: column; gap: .25rem;
+}
+
+.wl-card .wl-subjects > div {
+  padding: .3rem .5rem;
+  background: #f8fafc;
+  border-radius: .35rem;
+}

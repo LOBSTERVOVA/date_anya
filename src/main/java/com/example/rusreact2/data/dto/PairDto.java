@@ -1,6 +1,7 @@
 package com.example.rusreact2.data.dto;
 
 import com.example.rusreact2.data.models.Pair;
+import com.example.rusreact2.data.enums.LessonType;
 import lombok.Data;
 
 import java.time.LocalDate;
@@ -17,6 +18,7 @@ public class PairDto {
     List<LecturerDto> lecturers = null;
     List<GroupDto> groups = null;
     Boolean isActive = false;
+    LessonType type;
 
     public PairDto minimumPairDto(Pair pair, SubjectDto subject, RoomDto room, List<LecturerDto> lecturers, List<GroupDto> groups) {
         PairDto pairDto = new PairDto();
@@ -28,6 +30,7 @@ public class PairDto {
         pairDto.setLecturers(lecturers);
         pairDto.setGroups(groups);
         pairDto.setIsActive(pair.getIsActive());
+        pairDto.setType(pair.getType());
         return pairDto;
     }
 

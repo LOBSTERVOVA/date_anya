@@ -1,39 +1,35 @@
 package com.example.rusreact2.data.models;
 
+import com.example.rusreact2.data.enums.NewsType;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import java.time.LocalDate;
-import java.util.HashSet;
-import java.util.Objects;
-import java.util.Set;
-import java.util.UUID;
-import com.example.rusreact2.data.enums.LessonType;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Table;
+import java.time.LocalDateTime;
+import java.util.Objects;
+import java.util.UUID;
 
 @Data
-@Table(name = "pairs")
+@Table(name = "news")
 @NoArgsConstructor(force = true)
-public class Pair {
+public class News {
     @Id
     @Column("uuid")
     UUID uuid;
-    private UUID subjectUuid;
-    @Column(value = "pair_order")
-    int pairOrder;
-    LocalDate date;
 
-    private UUID roomUuid;
+    String title;
 
-    private Set<UUID> lecturerUuids = new HashSet<>();
+    @Column(value = "html_content")
+    String htmlContent;
 
-    private Set<UUID> groupUuids = new HashSet<>();
+    NewsType type;
 
-    private Boolean isActive = false;
+    @Column(value = "created_at")
+    LocalDateTime createdAt;
 
-    @Column(value = "pair_type")
-    LessonType type;
+    @Column(value = "updated_at")
+    LocalDateTime updatedAt;
 
     @Override
     public int hashCode() {
@@ -44,7 +40,7 @@ public class Pair {
     public boolean equals(Object o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
-        Pair that = (Pair) o;
+        News that = (News) o;
         return Objects.equals(uuid, that.uuid);
     }
 }

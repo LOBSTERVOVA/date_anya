@@ -1,62 +1,114 @@
 <div xmlns:th="http://www.thymeleaf.org" th:fragment="header">
-<nav class="navbar navbar-expand-lg navbar-light bg-glass sticky-top border-bottom">
-  <div class="container-fluid">
-    <a class="navbar-brand d-flex align-items-center gap-2" th:href="@{/schedule}">
-      <img src="/public/footer_logo.svg" alt="Logo" width="44" height="44" style="object-fit:contain;">
-      <span class="fs-4 fw-light">Университет</span>
+<nav class="navbar navbar-expand-lg fixed-top shadow-sm" id="mainHeader">
+  <div class="container">
+    <!-- Логотип -->
+    <a class="navbar-brand d-flex align-items-center gap-2 me-4" th:href="@{/schedule}">
+      <div class="brand-icon rounded-3 d-flex align-items-center justify-content-center" style="width:42px;height:42px;background:linear-gradient(135deg,#2563eb,#1d4ed8);">
+        <i class="bi bi-building text-white fs-5"></i>
+      </div>
+      <div class="d-flex flex-column lh-sm">
+        <span class="fw-bold text-dark" style="font-size:1.05rem;">Российский</span>
+        <span class="text-muted" style="font-size:.7rem;">университет спорта</span>
+      </div>
     </a>
-    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNavbar" aria-controls="mainNavbar" aria-expanded="false" aria-label="Toggle navigation">
+
+    <!-- Бургер -->
+    <button class="navbar-toggler border-0 shadow-none" type="button" data-bs-toggle="collapse" data-bs-target="#mainNavbar"
+            aria-controls="mainNavbar" aria-expanded="false" aria-label="Меню">
       <span class="navbar-toggler-icon"></span>
     </button>
+
+    <!-- Навигация -->
     <div class="collapse navbar-collapse" id="mainNavbar">
-      <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+      <ul class="navbar-nav align-items-lg-center gap-lg-1 ms-auto">
         <li class="nav-item">
-          <a class="nav-link fs-4 px-3 py-2 fw-light h-100 d-flex align-items-center" th:classappend="${active}=='schedule' ? ' active fw-normal' : ''" th:href="@{/schedule}">
-            Расписание
+          <a class="nav-link px-3 py-2 rounded-pill fw-medium" th:classappend="${active}=='schedule' ? ' active' : ''" th:href="@{/schedule}">
+            <i class="bi bi-calendar-week me-1 d-lg-none"></i>Расписание
           </a>
         </li>
         <li class="nav-item">
-          <a class="nav-link fs-4 px-3 py-2 fw-light h-100 d-flex align-items-center" th:classappend="${active}=='news' ? ' active fw-normal' : ''" th:href="@{/news}">
-            Новости
+          <a class="nav-link px-3 py-2 rounded-pill fw-medium" th:classappend="${active}=='news' ? ' active' : ''" th:href="@{/news}">
+            <i class="bi bi-newspaper me-1 d-lg-none"></i>Новости
           </a>
         </li>
         <li class="nav-item">
-          <a class="nav-link fs-4 px-3 py-2 fw-light h-100 d-flex align-items-center" th:classappend="${active}=='departments-lecturers' ? ' active fw-normal' : ''" th:href="@{/departments-lecturers}">
-            Кафедры и преподаватели
+          <a class="nav-link px-3 py-2 rounded-pill fw-medium" th:classappend="${active}=='departments-lecturers' ? ' active' : ''" th:href="@{/departments-lecturers}">
+            <i class="bi bi-people me-1 d-lg-none"></i>Кафедры
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link px-3 py-2 rounded-pill fw-medium" th:classappend="${active}=='workload' ? ' active' : ''" th:href="@{/workload}">
+            <i class="bi bi-graph-up me-1 d-lg-none"></i>Нагрузка
           </a>
         </li>
         <li class="nav-item dropdown">
-          <a id="communityMenu" class="nav-link fs-4 dropdown-toggle px-3 py-2 fw-light h-100 d-flex align-items-center" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false" th:classappend="${active}=='community' ? ' fw-normal' : ''">
-            Сообщество
+          <a class="nav-link px-3 py-2 rounded-pill fw-medium dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false"
+             th:classappend="${active}=='community' ? ' active' : ''">
+            <i class="bi bi-people-fill me-1 d-lg-none"></i>Сообщество
           </a>
-          <ul class="dropdown-menu" aria-labelledby="communityMenu">
-            <li><a class="dropdown-item fs-4 hover-slide" th:href="@{/community/sports-sections}">Спортивные секции</a></li>
-            <li><a class="dropdown-item fs-4 hover-slide" th:href="@{/community/science-clubs}">Научные кружки</a></li>
-            <li><a class="dropdown-item fs-4 hover-slide" th:href="@{/community/sport-events}">Спортивные мероприятия</a></li>
-            <li><a class="dropdown-item fs-4 hover-slide" th:href="@{/community/canteen-menu}">Меню столовой</a></li>
+          <ul class="dropdown-menu dropdown-menu-end border-0 shadow-lg rounded-4 mt-2 p-2">
+            <li><a class="dropdown-item rounded-3 py-2 px-3" th:href="@{/community/sports-sections}"><i class="bi bi-trophy me-2 text-primary"></i>Спортивные секции</a></li>
+            <li><a class="dropdown-item rounded-3 py-2 px-3" th:href="@{/community/science-clubs}"><i class="bi bi-lightbulb me-2 text-warning"></i>Научные кружки</a></li>
+            <li><a class="dropdown-item rounded-3 py-2 px-3" th:href="@{/community/sport-events}"><i class="bi bi-calendar-event me-2 text-success"></i>Спортивные мероприятия</a></li>
+            <li><hr class="dropdown-divider my-1" /></li>
+            <li><a class="dropdown-item rounded-3 py-2 px-3" th:href="@{/community/canteen-menu}"><i class="bi bi-cup-hot me-2 text-danger"></i>Меню столовой</a></li>
           </ul>
         </li>
         <li class="nav-item">
-          <a class="nav-link fs-4 px-3 py-2 fw-light h-100 d-flex align-items-center" th:classappend="${active}=='reference' ? ' active fw-normal' : ''" th:href="@{/reference}">
-            Справочная информация
+          <a class="nav-link px-3 py-2 rounded-pill fw-medium" th:classappend="${active}=='reference' ? ' active' : ''" th:href="@{/reference}">
+            <i class="bi bi-info-circle me-1 d-lg-none"></i>Справка
           </a>
         </li>
       </ul>
     </div>
   </div>
 </nav>
+
+<!-- Отступ чтобы контент не залезал под fixed-хедер -->
+<div style="height:72px;"></div>
+
 <style>
-  .bg-glass { background: rgba(255,255,255,0.72) !important; backdrop-filter: saturate(180%) blur(14px); -webkit-backdrop-filter: saturate(180%) blur(14px); }
-  .navbar { z-index: 1080; }
-  .dropdown-menu { z-index: 1090; }
-  .navbar-brand span { letter-spacing: .2px; }
-  .nav-link, .dropdown-item { position: relative; transition: color .2s ease; }
-  .nav-link::after { content: ''; position: absolute; left: 12px; right: 12px; bottom: 6px; height: 2px; background: currentColor; transform: scaleX(0); transform-origin: left; transition: transform .25s ease; opacity: .6; }
-  .nav-link:hover { color: #0d6efd; }
-  .nav-link:hover::after { transform: scaleX(1); }
-  .nav-link.active { color: #0d6efd !important; }
-  .dropdown-item.hover-slide { overflow: hidden; }
-  .dropdown-item.hover-slide::before { content: ''; position: absolute; inset: 0; transform: translateX(-100%); background: rgba(13,110,253,.08); transition: transform .25s ease; }
-  .dropdown-item.hover-slide:hover::before { transform: translateX(0); }
+  #mainHeader {
+    background: rgba(255,255,255,.88);
+    backdrop-filter: saturate(180%) blur(16px);
+    -webkit-backdrop-filter: saturate(180%) blur(16px);
+    border-bottom: 1px solid rgba(0,0,0,.06);
+  }
+  #mainHeader .navbar-brand { text-decoration: none; }
+  #mainHeader .nav-link {
+    color: #4b5563;
+    font-size: .925rem;
+    transition: color .2s, background .2s;
+    letter-spacing: -.01em;
+  }
+  #mainHeader .nav-link:hover {
+    color: #2563eb;
+    background: rgba(37,99,235,.06);
+  }
+  #mainHeader .nav-link.active {
+    color: #2563eb !important;
+    background: rgba(37,99,235,.1);
+    font-weight: 600;
+  }
+  #mainHeader .dropdown-item {
+    font-size: .9rem;
+    color: #374151;
+    transition: background .15s;
+  }
+  #mainHeader .dropdown-item:hover {
+    background: rgba(37,99,235,.06);
+    color: #2563eb;
+  }
+  #mainHeader .dropdown-item i { font-size: 1rem; width: 20px; text-align: center; }
+
+  @media (max-width: 991.98px) {
+    #mainHeader .navbar-collapse {
+      background: #fff;
+      border-radius: 1rem;
+      padding: .5rem;
+      margin-top: .5rem;
+      box-shadow: 0 8px 32px rgba(0,0,0,.12);
+    }
+  }
 </style>
 </div>

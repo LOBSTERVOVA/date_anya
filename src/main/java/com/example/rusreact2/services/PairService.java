@@ -251,4 +251,25 @@ public class PairService {
                 });
     }
 
+    /// Утвердить пары для выбранных кафедр: помечает isActive=true всем парам,
+    /// которые ведут преподаватели указанных кафедр
+    public Mono<Integer> approvePairs(Set<UUID> departmentUuids) {
+        return lecturerRepository.findAll()
+                .filter(l -> l.getDepartmentUuid() != null && departmentUuids.contains(l.getDepartmentUuid()))
+                .map(Lecturer::getUuid)
+                .collect(Collectors.toSet())
+                .flatMap(lecturerUuids -> {
+                    if (lecturerUuids.isEmpty()) return Mono.just(0);
+                    return pairRepository.findAll()
+                            .filter(p -> p.getLecturerUuids() != null
+                                    && p.getLecturerUuids().stream().anyMatch(lecturerUuids::contains))
+                            .flatMap(p -> {
+                                p.setIsActive(true);
+                                return pairRepository.save(p);
+                            })
+                            .count()
+                            .map(Long::intValue);
+                });
+    }
+
 }

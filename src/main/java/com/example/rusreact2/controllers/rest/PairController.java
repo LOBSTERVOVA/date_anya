@@ -11,6 +11,8 @@ import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import java.time.LocalDate;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 @Slf4j
@@ -44,6 +46,14 @@ public class PairController {
     public Mono<Void> deletePair(@PathVariable UUID uuid) {
         log.info("deletePair: uuid={}", uuid);
         return pairService.deletePair(uuid);
+    }
+
+    @PostMapping("/approve")
+    public Mono<Integer> approvePairs(@RequestBody Map<String, Set<UUID>> body) {
+        Set<UUID> departmentUuids = body.getOrDefault("departmentUuids", Set.of());
+        log.info("approvePairs: departments={}", departmentUuids);
+        if (departmentUuids.isEmpty()) return Mono.just(0);
+        return pairService.approvePairs(departmentUuids);
     }
 
 }

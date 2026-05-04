@@ -49,6 +49,15 @@ public class NavigationController {
         return Mono.just(Rendering.view("template").model(model).build());
     }
 
+    @GetMapping("/workload")
+    public Mono<Rendering> workload() {
+        Map<String, Object> model = new HashMap<>();
+        model.put("title", "Нагрузка-часы преподавателей");
+        model.put("index", "workload");
+        model.put("active", "workload");
+        return Mono.just(Rendering.view("template").model(model).build());
+    }
+
     @GetMapping("/community/sports-sections")
     public Mono<Rendering> communitySportsSections() {
         Map<String, Object> model = new HashMap<>();

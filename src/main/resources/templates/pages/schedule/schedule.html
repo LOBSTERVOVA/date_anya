@@ -156,6 +156,9 @@
           <button id="export-schedule" class="btn btn-success btn-sm" type="button">
             Экспортировать расписание
           </button>
+          <button id="approve-schedule-btn" class="btn btn-warning btn-sm" type="button">
+            <i class="bi bi-check2-all me-1"></i>Утвердить расписание
+          </button>
         </div>
         <div id="pairs-loading-wrap" class="progress" style="width: 220px; display: none;">
           <div id="pairs-loading-bar" class="progress-bar" role="progressbar" style="width: 0%;"></div>
@@ -167,7 +170,7 @@
         <table class="table table-bordered align-middle mb-0" id="schedule-grid-table">
           <thead class="table-light">
             <tr id="grid-header-row">
-              <th style="width: 160px;">День</th>
+              <th style="width:55px;min-width:55px;max-width:55px;">День</th>
               <th style="width: 110px;">Пара</th>
               <!-- JS will insert group columns -->
             </tr>
@@ -228,6 +231,17 @@
                 </div>
               </div>
               <div class="form-text">Минимум один преподаватель. В списке показаны только свободные преподаватели кафедры на выбранное время.</div>
+            </div>
+            <div id="pair-type-wrap" class="d-flex align-items-center gap-3">
+              <label class="form-label mb-0">Тип пары:</label>
+              <div class="form-check form-check-inline">
+                <input class="form-check-input" type="radio" name="pairType" id="type-lecture" value="LECTURE" />
+                <label class="form-check-label" for="type-lecture">Лекция</label>
+              </div>
+              <div class="form-check form-check-inline">
+                <input class="form-check-input" type="radio" name="pairType" id="type-practice" value="PRACTICE" checked />
+                <label class="form-check-label" for="type-practice">Практика</label>
+              </div>
             </div>
             <div id="pair-groups-wrap">
               <label class="form-label">Группы</label>
@@ -357,6 +371,33 @@
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" id="export-cancel">Отмена</button>
         <button type="button" class="btn btn-primary" id="export-confirm">Экспортировать</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Модалка утверждения расписания -->
+<div class="modal fade" id="approveScheduleModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content rounded-4 border-0 shadow">
+      <div class="modal-header border-0">
+        <h5 class="modal-title fw-bold">Утвердить расписание</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p class="text-muted small mb-3">Все пары выбранных кафедр будут утверждены и отобразятся у студентов и преподавателей.</p>
+        <div class="form-check mb-2">
+          <input class="form-check-input" type="checkbox" id="approve-select-all" />
+          <label class="form-check-label fw-semibold" for="approve-select-all">Выбрать все кафедры</label>
+        </div>
+        <hr />
+        <div id="approve-dept-list" class="d-flex flex-column gap-1" style="max-height:300px;overflow-y:auto;"></div>
+      </div>
+      <div class="modal-footer border-0">
+        <button type="button" class="btn btn-light rounded-pill" data-bs-dismiss="modal">Отмена</button>
+        <button type="button" id="approve-confirm-btn" class="btn btn-warning rounded-pill px-4">
+          <i class="bi bi-check2-all me-1"></i>Утвердить
+        </button>
       </div>
     </div>
   </div>

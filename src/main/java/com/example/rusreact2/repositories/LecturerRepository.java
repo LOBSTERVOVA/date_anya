@@ -10,12 +10,14 @@ import java.util.UUID;
 public interface LecturerRepository extends R2dbcRepository<Lecturer, UUID> {
     @Query("""
         SELECT * FROM lecturers l
-        WHERE (:q IS NULL OR :q = '' OR 
-               LOWER(CONCAT(COALESCE(l.last_name, ''), ' ', 
-                            COALESCE(l.first_name, ''), ' ', 
-                            COALESCE(l.patronymic, ''))) 
+        WHERE (:q IS NULL OR :q = '' OR
+               LOWER(CONCAT(COALESCE(l.last_name, ''), ' ',
+                            COALESCE(l.first_name, ''), ' ',
+                            COALESCE(l.patronymic, '')))
                LIKE LOWER(CONCAT('%', :q, '%')))
         ORDER BY l.last_name ASC, l.first_name ASC
         """)
     Flux<Lecturer> search(@Param("q") String q);
+
+    Flux<Lecturer> findByDepartmentUuid(UUID departmentUuid);
 }

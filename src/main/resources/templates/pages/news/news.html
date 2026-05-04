@@ -1,80 +1,106 @@
 <section class="container py-4" id="news-page">
   <!-- Заголовок и кнопка создания -->
-  <div class="d-flex align-items-center justify-content-between mb-3">
-    <h1 class="m-0">Новости</h1>
-    <button id="open-create-news" type="button" class="btn btn-primary">
-      <i class="bi bi-plus-lg me-1"></i>
-      Новая новость
+  <div class="d-flex align-items-center justify-content-between mb-4">
+    <div>
+      <h1 class="m-0 fw-bold" style="font-family: 'Roboto', sans-serif; font-size: 2.5rem; color: #1a1a2e;">Новости</h1>
+      <p class="text-muted mb-0 mt-1" style="font-size: 1rem;">Актуальные объявления, события и обновления университета</p>
+    </div>
+    <button id="open-create-news" type="button" class="btn btn-primary btn-lg d-inline-flex align-items-center rounded-pill px-4 shadow-sm">
+      <i class="bi bi-plus-lg me-2"></i>Добавить новость
     </button>
   </div>
 
-  <!-- Основная зона просмотра новостей: карточки/лента -->
+  <!-- Список новостей -->
   <div id="news-list" class="d-flex flex-column gap-3">
-    <!-- JS заполнит карточки новостей -->
+    <!-- JS -->
   </div>
 
-  <!-- Модал создания новости (frontend-only) -->
-  <div id="create-news-modal" class="modal" tabindex="-1" style="display:none;">
-    <div class="modal-dialog modal-lg">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title fs-2">Создание новости</h5>
-          <button type="button" class="btn-close" id="create-news-close" aria-label="Close"></button>
+  <!-- Пагинация -->
+  <nav id="news-pagination" class="d-flex justify-content-center align-items-center gap-2 mt-4" aria-label="Пагинация новостей">
+    <!-- JS -->
+  </nav>
+
+  <!-- ==================== МОДАЛКА ==================== -->
+  <div id="create-news-modal" class="modal fade" tabindex="-1" style="display:none;">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+      <div class="modal-content border-0 overflow-hidden" style="border-radius: 24px; box-shadow: 0 25px 80px rgba(0,0,0,0.25);">
+
+        <!-- Шапка -->
+        <div class="modal-header border-0 px-4 pt-4 pb-0">
+          <h5 class="modal-title fs-2 fw-bold" id="news-modal-title" style="font-family: 'Roboto', sans-serif;">Создание новости</h5>
+          <button type="button" class="btn-close" id="create-news-close" aria-label="Close" style="opacity: 0.5; transition: opacity 0.2s;"
+                  onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.5'"></button>
         </div>
-        <div class="modal-body">
-          <!-- Две колонки: слева форма, справа предпросмотр под телефон -->
-          <div class="row g-3 align-items-stretch">
-            <!-- Левая колонка: форма создания -->
+        <input type="hidden" id="editing-news-uuid" value="" />
+
+        <!-- Тело: две колонки -->
+        <div class="modal-body px-4 pb-4 pt-3">
+          <div class="row g-4">
+            <!-- ЛЕВАЯ КОЛОНКА: форма -->
             <div class="col-12 col-lg-7">
-              <!-- Форма создания: тип, заголовок, редактор Quill -->
+              <!-- Тип новости — цветные pills с иконками -->
               <div class="mb-3">
-                <label class="form-label fs-4">Тип новости</label>
-                <!-- Удобный формат выбора: список кнопок (radio-like) -->
-                <div id="news-type-pills" class="d-flex flex-wrap gap-2 mb-2">
-                  <!-- JS построит pill-кнопки типов -->
+                <label class="form-label fw-semibold mb-2" style="font-size: 0.95rem; color: #555;">Тип новости</label>
+                <div id="news-type-pills" class="d-flex flex-wrap gap-2">
+                  <!-- JS -->
                 </div>
               </div>
+
+              <!-- Заголовок -->
               <div class="mb-3">
-                <label class="form-label">Заголовок</label>
-                <input id="news-title" class="form-control" placeholder="Короткий заголовок новости" />
+                <label class="form-label fw-semibold mb-2" style="font-size: 0.95rem; color: #555;">Заголовок</label>
+                <input id="news-title"
+                       class="form-control form-control-lg rounded-3 border-2"
+                       style="border-color: #e0e0e0; transition: border-color 0.2s; font-size: 1.1rem;"
+                       placeholder="Короткий, яркий заголовок новости"
+                       onfocus="this.style.borderColor='#FB820A'"
+                       onblur="this.style.borderColor='#e0e0e0'" />
               </div>
-              <div class="mb-1">
-                <label class="form-label">Содержимое</label>
-                <!-- Контейнер редактора; Quill будет инициализирован JS -->
-                <div id="news-editor" class="bg-white border rounded" style="min-height: 260px;"></div>
+
+              <!-- Редактор -->
+              <div class="mb-2">
+                <label class="form-label fw-semibold mb-2" style="font-size: 0.95rem; color: #555;">Содержимое</label>
+                <div id="news-editor" class="bg-white rounded-3 overflow-hidden" style="min-height: 300px; border: 2px solid #e0e0e0;"></div>
               </div>
             </div>
 
-            <!-- Правая колонка: предпросмотр как на телефоне -->
+            <!-- ПРАВАЯ КОЛОНКА: живой предпросмотр карточки -->
             <div class="col-12 col-lg-5">
-              <!-- Каркас телефона: изображение телефона с оверлеем предпросмотра -->
-              <div class="card shadow-sm h-100">
-                <div class="card-header py-2">
-                  <div class="small text-muted">Предпросмотр (мобильный)</div>
+              <label class="form-label fw-semibold mb-2" style="font-size: 0.95rem; color: #555;">
+                <i class="bi bi-eye me-1"></i>Предпросмотр
+              </label>
+              <div id="news-live-card" class="card border-0 shadow-sm h-100" style="border-radius: 16px; background: #fff; min-height: 420px;">
+                <!-- Тип-бейдж -->
+                <div class="card-header bg-transparent border-0 pt-3 pb-0 px-3">
+                  <span id="preview-type-badge" class="badge rounded-pill px-3 py-2" style="font-size: 0.8rem; background: #6c757d;">Прочее</span>
                 </div>
-                <div class="card-body p-0">
-                  <div class="position-relative mx-auto" style="max-width: 420px;">
-                    <!-- Фон: изображение телефона -->
-                    <img src="/public/phone.svg" alt="phone" class="img-fluid w-100"/>
-                    <!-- Оверлей: отступы по 40px со всех сторон -->
-                    <div id="news-phone-preview" class="position-absolute overflow-auto my-4" style="inset: 40px;">
-                      <div class="preview-root">
-                        <h5 class="preview-title roboto-font">Заголовок новости</h5>
-                        <div class="preview-content roboto-font text-break">
-                          <p class="mb-0 text-muted">Содержимое появится по мере ввода...</p>
-                        </div>
-                      </div>
-                    </div>
+                <div class="card-body pt-2 pb-3 px-3 d-flex flex-column">
+                  <h5 id="preview-title" class="fw-bold mb-2" style="font-family: 'Roboto', sans-serif; font-size: 1.25rem; line-height: 1.3;">
+                    Заголовок новости
+                  </h5>
+                  <div id="preview-date" class="text-muted mb-3" style="font-size: 0.8rem;">
+                    <!-- дата сегодня -->
+                  </div>
+                  <div id="preview-content" class="flex-grow-1" style="font-family: 'Roboto', sans-serif; font-size: 0.95rem; line-height: 1.65; color: #333; overflow-y: auto; max-height: 300px;">
+                    <p class="text-muted mb-0">Содержимое появится по мере ввода…</p>
                   </div>
                 </div>
               </div>
             </div>
           </div>
         </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" id="create-news-cancel">Отмена</button>
-          <!-- Сохранение не требуется по заданию; оставим как disabled -->
-          <button type="button" class="btn btn-success" id="create-news-save" disabled>Сохранить (скоро)</button>
+
+        <!-- Футер -->
+        <div class="modal-footer border-0 px-4 pb-4 pt-0">
+          <button type="button" class="btn btn-light rounded-pill px-4" id="create-news-cancel"
+                  style="transition: all 0.2s;"
+                  onmouseover="this.style.background='#e9ecef'" onmouseout="this.style.background=''">Отмена</button>
+          <button type="button" class="btn btn-dark rounded-pill px-4 shadow-sm" id="create-news-save"
+                  style="transition: all 0.2s; background: #FB820A; border-color: #FB820A;"
+                  onmouseover="this.style.background='#e07508'; this.style.borderColor='#e07508'"
+                  onmouseout="this.style.background='#FB820A'; this.style.borderColor='#FB820A'">
+            <i class="bi bi-check-lg me-1"></i>Сохранить
+          </button>
         </div>
       </div>
     </div>
@@ -84,42 +110,130 @@
 <!-- Quill -->
 <link href="https://cdn.quilljs.com/1.3.7/quill.snow.css" rel="stylesheet">
 <script src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>
-<!-- Quill Image Resize module -->
 <script src="https://cdn.jsdelivr.net/npm/quill-image-resize-module@3.0.0/image-resize.min.js"></script>
+
 <style>
-  /* Ensure Roboto font is available (must be at the top of the style block) */
   @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap');
 
-  /* Default editor font: Roboto, and bigger base font-size for readability */
+  /* ---- Quill editor ---- */
+  #news-editor .ql-toolbar {
+    border: none !important;
+    border-bottom: 1px solid #eee !important;
+    background: #fafafa;
+    border-top-left-radius: 0.5rem;
+    border-top-right-radius: 0.5rem;
+  }
+  #news-editor .ql-container {
+    border: none !important;
+    border-bottom-left-radius: 0.5rem;
+    border-bottom-right-radius: 0.5rem;
+  }
   #news-editor .ql-editor {
     font-family: 'Roboto', Arial, sans-serif !important;
-    font-size: 18px !important;
+    font-size: 16px !important;
+    line-height: 1.7;
+    min-height: 260px;
+  }
+  #news-editor .ql-editor img { max-width: 100%; height: auto; border-radius: 8px; }
+
+  /* ---- Тип-пилюли ---- */
+  #news-type-pills button {
+    border-radius: 20px;
+    padding: 6px 16px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    border: 2px solid #e0e0e0;
+    background: #fff;
+    color: #555;
+    transition: all 0.2s ease;
+    cursor: pointer;
+    font-family: 'Roboto', sans-serif;
+  }
+  #news-type-pills button:hover {
+    border-color: #bbb;
+    color: #333;
+  }
+  #news-type-pills button.active-type {
+    color: #fff !important;
+    border-color: transparent !important;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  }
+  /* Цвета для активных пилюль по типам */
+  #news-type-pills button.active-type[data-value="APP_UPDATE"]         { background: #4A90D9 !important; }
+  #news-type-pills button.active-type[data-value="NEW_SECTION"]        { background: #27AE60 !important; }
+  #news-type-pills button.active-type[data-value="NEW_SCIENCE_CLUB"]   { background: #8E44AD !important; }
+  #news-type-pills button.active-type[data-value="NEW_LECTURER"]       { background: #16A085 !important; }
+  #news-type-pills button.active-type[data-value="SPORT_ACHIEVEMENT"]  { background: #F39C12 !important; }
+  #news-type-pills button.active-type[data-value="SPORT_EVENT"]        { background: #E74C3C !important; }
+  #news-type-pills button.active-type[data-value="IMPORTANT"]          { background: #C0392B !important; }
+  #news-type-pills button.active-type[data-value="INFORMATION"]        { background: #5D6D7E !important; }
+  #news-type-pills button.active-type[data-value="OTHER"]              { background: #95A5A6 !important; }
+
+  /* ---- Живой предпросмотр ---- */
+  #preview-content img { max-width: 100%; height: auto; border-radius: 8px; }
+  #preview-content b, #preview-content strong { font-weight: 700; }
+  #preview-content .ql-size-small  { font-size: 0.8em; }
+  #preview-content .ql-size-large  { font-size: 1.4em; }
+  #preview-content .ql-size-huge   { font-size: 2em; }
+  #preview-content .ql-align-center  { text-align: center; }
+  #preview-content .ql-align-right   { text-align: right; }
+  #preview-content .ql-align-justify { text-align: justify; }
+
+  /* ---- Модал: backdrop и анимация ---- */
+  #create-news-modal.show {
+    background: rgba(0,0,0,0.55) !important;
+    backdrop-filter: blur(4px);
+  }
+  #create-news-modal .modal-dialog {
+    transition: transform 0.3s ease, opacity 0.3s ease;
+  }
+
+  /* ---- Карточки новостей ---- */
+  .news-card {
+    border-radius: 1rem;
+    border: 1px solid #e9ecef;
+    transition: all 0.3s ease;
+  }
+  .news-card:hover {
+    box-shadow: 0 0.5rem 2rem rgba(0,0,0,0.1);
+    border-color: #dee2e6;
+  }
+  .news-card-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: #1a1a2e;
+    margin: 0.5rem 0;
+    font-family: 'Roboto', sans-serif;
+    line-height: 1.3;
+  }
+  .news-card-desc {
+    color: #6c757d;
     line-height: 1.6;
+    margin-bottom: 0;
+    font-family: 'Roboto', sans-serif;
   }
-  #news-editor .ql-editor img { max-width: 100%; height: auto; }
-  /* Optional: make toolbar corners match container */
-  #news-editor .ql-toolbar { border-top-left-radius: .375rem; border-top-right-radius: .375rem; }
-  #news-editor .ql-container { border-bottom-left-radius: .375rem; border-bottom-right-radius: .375rem; }
-
-  /* Предпросмотр: везде принудительно Roboto */
-  #news-phone-preview, #news-phone-preview .preview-root, #news-phone-preview .preview-root * {
-    font-family: 'Roboto', Arial, sans-serif !important;
+  .news-meta {
+    color: #6c757d;
+    font-size: 0.875rem;
   }
-  /* Изображения в предпросмотре подгоняем под ширину "экрана телефона" */
-  #news-phone-preview img { max-width: 100%; height: auto; border-radius: 12px; }
-  #news-phone-preview .preview-title { font-size: 20px; line-height: 1.35; margin-bottom: .5rem; }
-  #news-phone-preview .preview-content { font-size: 16px; line-height: 1.6; }
-
-  /* Отображение quill-классов размеров и выравнивания в превью */
-  #news-phone-preview .ql-size-small { font-size: 0.8em; }
-  #news-phone-preview .ql-size-large { font-size: 1.5em; }
-  #news-phone-preview .ql-size-huge { font-size: 2.2em; }
-
-  #news-phone-preview .ql-align-center { text-align: center; }
-  #news-phone-preview .ql-align-right { text-align: right; }
-  #news-phone-preview .ql-align-justify { text-align: justify; }
-
-  /* На всякий случай усилим жирность */
-  #news-phone-preview b, #news-phone-preview strong { font-weight: 700; }
+  .news-card-icon {
+    width: 100px;
+    height: 100px;
+    border-radius: 0.75rem;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  @media (max-width: 991px) {
+    .news-card-icon {
+      width: 80px;
+      height: 80px;
+    }
+    .news-card-icon i {
+      font-size: 2rem !important;
+    }
+  }
 </style>
+
 <script type="module" src="/js/pages/news/news.js"></script>

@@ -1,0 +1,2 @@
+ALTER TABLE pairs
+    ADD COLUMN IF NOT EXISTS pair_type TEXT;
