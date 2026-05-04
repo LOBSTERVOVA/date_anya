@@ -23,6 +23,7 @@ public interface PairRepository extends R2dbcRepository<Pair, UUID> {
         FROM pairs p
         WHERE p.group_uuids && ARRAY[ :groupUuids ]::uuid[]
           AND p.date BETWEEN :from AND :to
+          AND p.is_active = true
         ORDER BY p.date ASC, p.pair_order ASC
         """)
     Flux<Pair> findByGroupUuidsAndDateBetween(
@@ -37,6 +38,7 @@ public interface PairRepository extends R2dbcRepository<Pair, UUID> {
         FROM pairs p
         WHERE p.lecturer_uuids && ARRAY[ :lecturerUuids ]::uuid[]
           AND p.date BETWEEN :from AND :to
+          AND p.is_active = true
         ORDER BY p.date ASC, p.pair_order ASC
         """)
     Flux<Pair> findByLecturerUuidsAndDateBetween(

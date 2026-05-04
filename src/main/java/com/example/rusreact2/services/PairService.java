@@ -70,9 +70,10 @@ public class PairService {
     }
 
     private Mono<RoomDto> getRoom(UUID uuid) {
-        if (uuid == null) return Mono.empty();
+        if (uuid == null) return Mono.just(new RoomDto());  // null-object, чтобы Mono.zip не схлопывался
         return roomRepository.findById(uuid)
-                .map(room -> new RoomDto(room.getUuid(), room.getTitle()));
+                .map(room -> new RoomDto(room.getUuid(), room.getTitle()))
+                .switchIfEmpty(Mono.just(new RoomDto()));
     }
 
     private Mono<SubjectDto> getSubject(UUID uuid) {
@@ -225,9 +226,9 @@ public class PairService {
                                             }
 
                                             // Все проверки пройдены — сохраняем
-                                            if (!isUpdate) {
-                                                p.setIsActive(false);
-                                            }
+                                            // Новая пара: isActive = false;
+                                            // Редактирование: сбрасываем в false (пара становится неутверждённой)
+                                            p.setIsActive(false);
                                             return pairRepository.save(p)
                                                     .flatMap(this::convertPairToPairDto);
                                         })

@@ -362,7 +362,8 @@ async function init() {
                             </div>
                         </div>
                     `)
-                    .addClass('has-pair');
+                    .addClass('has-pair')
+                    .toggleClass('unapproved', pair.isActive === false);
                 // Если ячейки нет - jQuery ничего не сделает, ошибки не будет
             });
         });
