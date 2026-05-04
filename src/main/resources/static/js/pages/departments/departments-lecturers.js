@@ -57,7 +57,7 @@
             <div class="d-flex align-items-start gap-3 mb-2">
               <div class="card-avatar">${avatarLetter}</div>
               <div class="overflow-hidden flex-grow-1">
-                <div class="card-title text-truncate" title="${d.name}">${d.name}</div>
+                <div class="card-title" title="${d.name}">${d.name}</div>
                 ${head ? `<div class="text-muted small"><i class="bi bi-person-badge me-1"></i>Зав. кафедрой: <span class="fw-medium text-dark">${fmtLecturer(head)}</span></div>` : ''}
               </div>
             </div>

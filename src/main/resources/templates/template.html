@@ -44,6 +44,10 @@
             <main th:if="${index} == 'schedule-page'" th:insert="~{pages/schedule/schedule}"></main>
         </div>
 
+        <div class="container py-4" th:if="${index} == 'workload'">
+            <main th:insert="~{pages/departments/workload}"></main>
+        </div>
+
         <div class="container py-4" th:if="${index} == 'departments-lecturers'">
             <main th:insert="~{pages/departments-lecturers}"></main>
         </div>
@@ -54,10 +58,6 @@
 
         <div class="container py-4" th:if="${index} == 'departments-new'">
             <main th:insert="~{pages/departments/new}"></main>
-        </div>
-
-        <div class="container py-4" th:if="${index} == 'workload'">
-            <main th:insert="~{pages/departments/workload}"></main>
         </div>
 
         <div class="container py-4" th:if="${index} == 'community-sports-sections'">

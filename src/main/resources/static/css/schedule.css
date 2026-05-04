@@ -248,10 +248,23 @@
 
 
 #schedule-page #schedule-grid-table{
-  table-layout: auto;
+  table-layout: fixed;
   width: auto !important;
   max-width: none;
-  /*min-width: 100%;*/
+}
+
+#schedule-page #schedule-grid-table td {
+  min-width: 0;
+}
+
+#schedule-page #schedule-grid-table td .row {
+  min-width: 0;
+}
+
+#schedule-page #schedule-grid-table td .col-12 {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 #schedule-grid {
@@ -270,6 +283,9 @@
 }
 
 /* Название предмета — макс 2 строки, остальное троеточие */
+.lesson-cell {
+  overflow: hidden;
+}
 .lesson-cell .text-primary {
   display: -webkit-box;
   -webkit-line-clamp: 2;

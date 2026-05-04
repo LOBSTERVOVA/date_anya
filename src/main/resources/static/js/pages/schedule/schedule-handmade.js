@@ -352,7 +352,7 @@ async function init() {
                             <div class="col-12 text-primary" style="font-size:0.75rem">
                                 ${pair.subject?.name}
                             </div>
-                            <div class="col-12" style="font-size:0.7rem">
+                            <div class="col-12 ${pair.groups.length === 0 ? 'text-danger' : ''}" style="font-size:0.7rem">
                                 Групп: ${pair.groups.length}
                             </div>
                             <div class="col-12 text-muted" style="font-size:0.6rem">
@@ -435,6 +435,31 @@ async function init() {
             initModalGroups($('#pair-groups-search').val() || '');
         })
 
+        // --- Повтор по неделям ---
+        const repeatList = $('#repeat-weeks-list');
+        repeatList.empty();
+        const startDate = new Date(date);
+        startDate.setDate(startDate.getDate() + 7); // со следующей недели
+        const endDate = new Date(startDate.getFullYear(), 7, 31); // 31 августа
+        if (endDate < startDate) endDate.setFullYear(endDate.getFullYear() + 1);
+        let hasAny = false;
+        for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 7)) {
+            hasAny = true;
+            const iso = dateToIso(d);
+            repeatList.append(`
+                <div class="form-check">
+                    <input class="form-check-input repeat-week-cb" type="checkbox" value="${iso}" id="rw-${iso}">
+                    <label class="form-check-label" for="rw-${iso}">${formatDateDDMM(d)}</label>
+                </div>
+            `);
+        }
+        if (!hasAny) {
+            repeatList.html('<div class="text-muted small">Нет доступных недель для повтора</div>');
+        }
+        $('#repeat-select-all').off('change').on('change', function () {
+            $('.repeat-week-cb').prop('checked', this.checked);
+        });
+
         // Синхронизация чекбоксов групп с selectedGroupUuids
         $(document).off('change', '#pair-groups-list input[type="checkbox"]').on('change', '#pair-groups-list input[type="checkbox"]', function () {
             const uuid = $(this).closest('[data-group-uuid]').data('group-uuid');
@@ -488,7 +513,6 @@ async function init() {
                 return;
             }
 
-            // Отправляем
             const payload = {
                 uuid: pair?.uuid || null,
                 subjectUuid: selectedSubject.uuid || selectedSubject.id,
@@ -500,6 +524,7 @@ async function init() {
                 type: $('input[name="pairType"]:checked').val() || 'PRACTICE'
             };
 
+            // Сохраняем основную пару
             try {
                 await $.ajax({
                     url: '/api/pair',
@@ -507,13 +532,31 @@ async function init() {
                     contentType: 'application/json',
                     data: JSON.stringify(payload)
                 });
-                $('#pair-modal').modal('hide');
-                showToast('Пара сохранена', 'success');
-                await renderTable();
             } catch (e) {
                 const msg = e.responseJSON?.message || e.statusText || 'Ошибка сохранения';
                 showToast(msg, 'danger');
+                return;
             }
+
+            // Повторы по неделям
+            const repeatDates = $('.repeat-week-cb:checked').map(function () { return $(this).val(); }).get();
+            let ok = 1, fail = 0;
+            for (const rd of repeatDates) {
+                const rp = { ...payload, uuid: null, date: rd };
+                try {
+                    await $.ajax({ url: '/api/pair', type: 'POST', contentType: 'application/json', data: JSON.stringify(rp) });
+                    ok++;
+                } catch (e) {
+                    fail++;
+                    const msg = e.responseJSON?.message || e.statusText || 'Ошибка';
+                    showToast(`${formatDateDDMM(new Date(rd + 'T00:00:00'))}: ${msg}`, 'danger');
+                }
+            }
+
+            $('#pair-modal').modal('hide');
+            const sumMsg = `Сохранено пар: ${ok}` + (fail ? `, не сохранено: ${fail}` : '');
+            showToast(sumMsg, fail ? 'warning' : 'success');
+            await renderTable();
         });
 
 
@@ -620,7 +663,7 @@ async function init() {
                 const g = loadedGroups.find(gg => gg.uuid === uuid);
                 const name = g ? (g.groupName || g.name || uuid) : uuid;
                 const $chip = $(`
-                    <span class="badge bg-success me-2 mb-2 p-2 d-inline-flex align-items-center group-chip">
+                    <span class="badge bg-success me-2 mb-2 p-2 d-inline-flex align-items-center group-chip fw-normal">
                         ${name}
                         <button type="button" class="btn-close btn-close-white ms-2" style="font-size:.5em;" aria-label="Удалить"></button>
                     </span>
@@ -735,7 +778,7 @@ async function init() {
                 if (!dragging) return;
                 // Отключаем выделение текста при перетаскивании
                 e.preventDefault();
-                const newWidth = Math.max(10, dragging.w + (e.pageX - dragging.x));
+                const newWidth = Math.max(5, dragging.w + (e.pageX - dragging.x));
                 $(dragging.el).css({
                     'min-width': newWidth + 'px',
                     'max-width': newWidth + 'px',
