@@ -19,4 +19,7 @@ public interface GroupRepository extends R2dbcRepository<Group, UUID> {
 
     @Query("SELECT * FROM groups g WHERE LOWER(g.group_name) = LOWER(:groupName) AND LOWER(g.specialization) = LOWER(:specialization) AND LOWER(g.direction) = LOWER(:direction)")
     Mono<Group> findByGroupNameAndSpecializationAndDirection(@Param("groupName") String groupName, @Param("specialization") String specialization, @Param("direction") String direction);
+
+    @Query("SELECT DISTINCT g.faculty FROM groups g WHERE g.faculty IS NOT NULL ORDER BY g.faculty ASC")
+    Flux<String> findDistinctFaculties();
 }

@@ -55,6 +55,7 @@ public class CsvImportRunner implements ApplicationRunner {
 
     @Override
     public void run(ApplicationArguments args) {
+        if (true) return;
         importAll()
                 .doOnSubscribe(s -> log.info("=== Запуск реактивного CSV-импорта ==="))
                 .doOnTerminate(() -> log.info("=== CSV-импорт завершён ==="))

@@ -1164,4 +1164,87 @@ function initExportSchedule() {
             }
         });
     }
+
+    // =========== Создание группы ===========
+    async function loadFaculties() {
+        try {
+            const response = await fetch('/api/group/faculties');
+            if (!response.ok) throw new Error('Failed to load faculties');
+            const faculties = await response.json();
+            const datalist = document.getElementById('faculty-datalist');
+            datalist.innerHTML = '';
+            faculties.forEach(f => {
+                const opt = document.createElement('option');
+                opt.value = f;
+                datalist.appendChild(opt);
+            });
+        } catch (e) {
+            console.error('Failed to load faculties', e);
+        }
+    }
+
+    async function createGroup() {
+        const groupName = $('#group-name-input').val().trim();
+        const course = parseInt($('#group-course-input').val(), 10);
+        const educationForm = $('#group-eduform-input').val();
+        const direction = $('#group-direction-input').val().trim();
+        const faculty = $('#group-faculty-input').val().trim();
+        const specialization = $('#group-specialization-input').val().trim();
+        const sportsRaw = $('#group-sports-input').val().trim();
+
+        if (!groupName || !course || !educationForm || !direction || !faculty) {
+            showToast('Заполните все обязательные поля', 'warning', 'Ошибка');
+            return;
+        }
+
+        const kindsOfSports = sportsRaw
+            ? sportsRaw.split(',').map(s => s.trim()).filter(s => s.length > 0)
+            : [];
+
+        const body = {
+            groupName,
+            course,
+            educationForm,
+            direction,
+            faculty,
+            specialization: specialization || null,
+            kindsOfSports: kindsOfSports.length > 0 ? kindsOfSports : null
+        };
+
+        try {
+            const response = await fetch('/api/group', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+            if (!response.ok) {
+                const text = await response.text();
+                throw new Error(text || 'Ошибка создания группы');
+            }
+            const created = await response.json();
+            showToast(`Группа «${created.groupName}» создана`, 'success', 'Успех');
+
+            // Очищаем форму и закрываем модалку
+            document.getElementById('create-group-form').reset();
+            const modal = bootstrap.Modal.getInstance(document.getElementById('create-group-modal'));
+            modal.hide();
+
+            // Перезагружаем группы
+            loadedGroups = await fetchGroups('');
+            window.allGroups = loadedGroups;
+        } catch (e) {
+            console.error('Failed to create group', e);
+            showToast(e.message || 'Не удалось создать группу', 'danger', 'Ошибка');
+        }
+    }
+
+    // Привязываем события
+    document.addEventListener('DOMContentLoaded', () => {
+        const groupModal = document.getElementById('create-group-modal');
+        if (groupModal) {
+            groupModal.addEventListener('show.bs.modal', loadFaculties);
+        }
+    });
+
+    $('#create-group-confirm-btn').on('click', createGroup);
 }
