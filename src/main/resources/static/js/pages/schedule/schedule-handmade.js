@@ -22,6 +22,13 @@ let weekPairs = [];
 async function init() {
     console.log('init START HANDMADE');
 
+    // Инициализируем модалку с focus: false, чтобы Bootstrap не скроллил страницу при открытии
+    $('#pair-modal').modal({ focus: false });
+    // Фиксируем позицию скролла при открытии/закрытии модалки
+    let modalScrollY = 0;
+    $('#pair-modal').on('show.bs.modal', () => { modalScrollY = window.scrollY; })
+                    .on('shown.bs.modal', () => { window.scrollTo(0, modalScrollY); });
+
     /**
      * Инициализация стартовых переменных
      */
@@ -297,19 +304,18 @@ async function init() {
                     deptLecturers.forEach(l => {
                         const $cell = $(`
                             <td class="lesson-cell p-1 position-relative"
-                                data-bs-toggle="modal"
-                                data-bs-target="#pair-modal"
-                                data-day="${dayIndex}" 
+                                data-day="${dayIndex}"
                                 data-lesson="${lessonIndex}"
                                 data-dept="${l.uuid}"
                                 id="${day.date}-${lessonIndex+1}-${l.uuid}"
-                                style="overflow-x: hidden; overflow-y: auto">
+                                style="overflow-x: hidden; overflow-y: auto; cursor: pointer">
                                 <!-- кликните для редактирования -->
                             </td>
                         `);
 
                         // Вешаем обработчик прямо на элемент
-                        $cell.on('click', function() {
+                        $cell.on('click', function(e) {
+                            e.preventDefault();
                             const date = new Date(weekStart);
                             date.setDate(weekStart.getDate() + dayIndex);
 
@@ -320,7 +326,7 @@ async function init() {
                             );
                             console.log(`переданная дата: ${date} !!!!!!!!!!!!!!!!!!!!!!`)
                             setupPairModal(date, lessonIndex + 1, dept, l, pair);
-
+                            $('#pair-modal').modal('show');
                         });
                         $row.append($cell);
 
