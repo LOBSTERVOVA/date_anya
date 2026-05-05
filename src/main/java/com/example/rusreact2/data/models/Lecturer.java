@@ -36,6 +36,7 @@ public class Lecturer {
     String description;
     String phone;
     String email;
+    @Column(value = "office_room")
     String room;
     String academicDegree;
     @Column(value = "is_lab_head")
