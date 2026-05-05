@@ -16,4 +16,9 @@ public class GroupService {
         return groupRepository.search(query)
                 .map(group -> new GroupDto().minimumGroupDto(group));
     }
+
+    public Flux<GroupDto> getAll() {
+        return groupRepository.findAll()
+                .map(group -> new GroupDto().minimumGroupDto(group));
+    }
 }

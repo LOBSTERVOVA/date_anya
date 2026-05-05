@@ -88,6 +88,14 @@ public class PairService {
 //        return pairRepository.findByDateAndPairOrder(date, pairOrder);
 //    }
 
+    /// Получить только активные (утверждённые) пары за период
+    public Flux<PairDto> getActivePairsBatch(LocalDate from, LocalDate to) {
+        if (from == null) return Flux.empty();
+        LocalDate end = to != null ? to : from.plusDays(6);
+        return pairRepository.findByDateBetweenAndIsActiveTrue(from, end)
+                .flatMap(this::convertPairToPairDto);
+    }
+
     /// Сохранение пары (создание или редактирование):
     /// - если uuid отсутствует — создание новой пары
     /// - если uuid передан — редактирование существующей

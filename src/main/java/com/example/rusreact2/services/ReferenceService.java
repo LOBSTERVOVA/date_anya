@@ -23,6 +23,11 @@ public class ReferenceService {
     private final ReferenceInfoRepository refRepo;
     private final MonthDayRangeRepository mdrRepo;
 
+    public Flux<ReferenceInfo> getAll() {
+        return refRepo.findAll()
+                .flatMap(this::attachActualDates);
+    }
+
     public Flux<String> getDistinctThemes() {
         return refRepo.findDistinctThemes();
     }

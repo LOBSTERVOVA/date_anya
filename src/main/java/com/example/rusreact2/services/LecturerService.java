@@ -37,6 +37,18 @@ public class LecturerService {
                 );
     }
 
+    public Flux<LecturerDto> getAll() {
+        return lecturerRepository.findAll()
+                .flatMap(lecturer ->
+                        departmentRepository.findById(lecturer.getDepartmentUuid())
+                                .map(department -> new LecturerDto().fullLecturerDto(
+                                        lecturer,
+                                        new DepartmentDto().minimumDepartmentDto(department))
+                                )
+                                .defaultIfEmpty(new LecturerDto().minimumLecturerDto(lecturer))
+                );
+    }
+
     /// Преподаватели, не привязанные ни к одной кафедре
     public Flux<LecturerDto> findEligible() {
         return lecturerRepository.findAll()

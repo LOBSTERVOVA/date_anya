@@ -16,6 +16,19 @@ public interface PairRepository extends R2dbcRepository<Pair, UUID> {
     /// Получение всех пар по дате и номеру пары (для получения свободных аудиторий)
     Flux<Pair> findByDateAndPairOrder(LocalDate date, int pairOrder);
 
+    /// Только активные (утверждённые) пары в диапазоне дат
+    @Query("""
+        SELECT p.uuid, p.subject_uuid, p.pair_order, p.date, p.room_uuid,
+               p.is_active, p.pair_type, p.group_uuids, p.lecturer_uuids
+        FROM pairs p
+        WHERE p.date BETWEEN :from AND :to
+          AND p.is_active = true
+        ORDER BY p.date ASC, p.pair_order ASC
+        """)
+    Flux<Pair> findByDateBetweenAndIsActiveTrue(
+            @Param("from") LocalDate from,
+            @Param("to") LocalDate to);
+
     /// Пары для выбранных групп в диапазоне дат (для экспорта)
     @Query("""
         SELECT DISTINCT p.uuid, p.subject_uuid, p.pair_order, p.date, p.room_uuid,
