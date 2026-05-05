@@ -6,7 +6,6 @@ import org.springframework.data.r2dbc.repository.R2dbcRepository;
 import org.springframework.data.repository.query.Param;
 import reactor.core.publisher.Flux;
 
-import java.util.List;
 import java.util.UUID;
 
 public interface DepartmentRepository extends R2dbcRepository<Department, UUID> {
@@ -14,4 +13,7 @@ public interface DepartmentRepository extends R2dbcRepository<Department, UUID> 
             "(:q IS NULL OR :q = '' OR LOWER(d.name) LIKE LOWER(CONCAT('%', :q, '%'))) " +
             "ORDER BY d.name ASC")
     Flux<Department> search(@Param("q") String q);
+
+    @Query("SELECT * FROM departments d WHERE LOWER(d.name) = LOWER(:name)")
+    Flux<Department> findByName(@Param("name") String name);
 }
