@@ -29,6 +29,7 @@ async function init() {
     // Загружаем все кафедры
     try {
         loadedDepartments = await fetchDepartments('');
+        loadedDepartments.sort((a, b) => a.name.localeCompare(b.name, 'ru'));
 
         console.log('Loaded departments:', loadedDepartments.length);
         loadedDepartments.forEach(dep => {
