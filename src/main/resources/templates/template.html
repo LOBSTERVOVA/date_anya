@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html class="h-100 w-100 overflow-x-hidden" lang="ru" xmlns:th="http://www.thymeleaf.org">
+<html class="h-100 w-100 overflow-x-hidden" lang="ru" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -22,20 +22,28 @@
         <script src="/fw/jquery/dist/jquery.js"></script>
         <script src="/js/global/weakly.seeing.js"></script>
         <script th:inline="javascript">
-            var csrf = /*[[${_csrf}]]*/ null;
-            var cdn = /*[[${cdn}]]*/ null;
-            var mainUrl = 'http://localhost:8080';
-            var auth = /*[[${auth}]]*/ null;
-            var applicationUser = /*[[${applicationUser}]]*/ null;
+            let csrf = [[${_csrf}]];
+            let auth = [[${auth}]];
+            let user = [[${user}]];
+            let cdn = [[${cdn}]];
+            window.csrf = csrf;
+            window.auth = auth;
+            window.user = user;
+            window.cdn = cdn;
+            window.mainUrl = 'http://localhost:8080';
+            console.log(cdn);
+            console.log(csrf);
+            console.log('auth is: ', auth);
         </script>
         <script src="/js/func/init.js"></script>
+        <script src="/js/global/header.js"></script>
     </head>
     <script>console.log("1111111111111111111111111111111111111111111")</script>
 
     <body class="h-100">
         <div class="toast-container position-fixed bottom-0 end-0 p-3" id="info-toast" style="transform: translate(-20px, 0)"></div>
 
-        <header class="row m-0 p-0" th:insert="~{blocks/header :: header}"></header>
+        <header id="header-container" class="row m-0 p-0"></header>
 
         <div th:if="${index} == 'main-page'">
             <main th:insert="~{pages/home/main-page}"></main>
