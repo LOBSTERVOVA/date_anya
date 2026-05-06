@@ -400,7 +400,8 @@ const SCHEDULE_HTML = `<section class="container-fluid py-4" id="schedule-page">
       </div>
     </div>
   </div>
-</div>`;
+</div>
+`;
 
 let loadedDepartments = [];
 let loadedLecturers = [];
@@ -412,11 +413,11 @@ let weekStart = getWeekStart(null);
 
 let weekPairs = [];
 
-async function init() {
+async function init(container) {
     console.log('init START HANDMADE');
 
-    // Вставляем HTML-шаблон расписания в DOM
-    document.getElementById('schedule-root').innerHTML = SCHEDULE_HTML;
+    // Вставляем HTML-шаблон расписания в указанный контейнер
+    container.innerHTML = SCHEDULE_HTML;
 
     // Динамически загружаем rooms.js (содержит renderRoomsTable)
     await new Promise((resolve, reject) => {
@@ -1259,7 +1260,7 @@ async function init() {
     console.log('Ready for work - departments:', loadedDepartments.length, 'rooms:', loadedRooms.length);
 }
 
-document.addEventListener('DOMContentLoaded', init);
+export { init };
 
 // ========================== Export functions ==========================
 
