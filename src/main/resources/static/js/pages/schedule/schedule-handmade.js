@@ -9,6 +9,399 @@ import {
 import {showToast, getWeekStart, getWeekEnd, formatDateDDMM, formatLectFio, formatEducationForm, dateToIso} from "./utils.js";
 import {startOfWeekMonday, endOfWeekSunday, dateIsoFor} from "./date.js";
 
+// ==================== HTML TEMPLATE ====================
+const SCHEDULE_HTML = `<section class="container-fluid py-4" id="schedule-page">
+  <link rel="stylesheet" href="/css/schedule.css" />
+
+  <style>
+    /* Устанавливаем правильную иерархию z-index */
+    .modal {
+      z-index: 1055 !important;
+    }
+    .modal-backdrop {
+      z-index: 1050 !important;
+    }
+
+    /* Dropdown элементы должны быть поверх модалки */
+    .dropdown-menu {
+      z-index: 1060 !important;
+    }
+
+    /* Хедер должен быть под модалкой */
+    header, .header, .navbar {
+      z-index: 1000 !important;
+    }
+
+    /* Toast поверх всего */
+    #info-toast {
+      z-index: 1070 !important;
+    }
+  </style>
+
+  <!-- Toast container for notifications -->
+  <div id="info-toast" class="position-fixed top-0 end-0 p-3" style="z-index: 1070"></div>
+
+  <div class="bg-white rounded-4 shadow p-4">
+    <div class="d-flex flex-column gap-3">
+
+      <!-- Top controls: week navigation and lecturer selector -->
+      <div class="d-flex flex-wrap align-items-end gap-3 justify-content-between">
+        <div class="d-flex align-items-center gap-2">
+          <button id="week-prev" class="btn btn-outline-secondary rounded-circle" type="button" aria-label="Предыдущая неделя">
+            <i class="bi bi-chevron-left"></i>
+          </button>
+          <div class="text-center">
+            <div class="fw-normal fs-5" id="week-label">Неделя</div>
+            <div class="text-muted small" id="week-dates">--.-- — --.--</div>
+          </div>
+          <button id="week-next" class="btn btn-outline-secondary rounded-circle" type="button" aria-label="Следующая неделя">
+            <i class="bi bi-chevron-right"></i>
+          </button>
+        </div>
+
+        <div class="d-flex flex-column flex-grow-1 gap-2" style="max-width: 520px;">
+          <div>
+            <div class="col-12">
+              Кафедры
+            </div>
+          </div>
+
+          <!-- Кнопка добавления кафедры -->
+          <div class="d-flex gap-4">
+          <button id="add-department-btn" class="btn btn-outline-primary btn-sm" type="button" data-bs-toggle="modal" data-bs-target="#additional-department-modal">
+            <i class="bi bi-plus-circle me-1"></i>Добавить кафедру
+          </button>
+          <button id="add-group-btn" class="btn btn-outline-secondary btn-sm" type="button" data-bs-toggle="modal" data-bs-target="#create-group-modal">
+            <i class="bi bi-plus-circle me-1"></i>Добавить группу
+          </button>
+          </div>
+<!--          модалка для выбора кафедр-->
+          <div id="additional-department-modal" class="modal" >
+            <div class="modal-dialog modal-lg" style="">
+              <div class="modal-content bg-white rounded shadow">
+                <div class="modal-header p-3 border-bottom">
+                  <h5 class="modal-title mb-0">Добавить кафедру</h5>
+                  <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-3">
+                  <div class="mb-3">
+                    <label for="additional-dept-search" class="form-label">Поиск кафедры</label>
+                    <div class="position-relative">
+                      <input id="additional-dept-search" type="text" class="form-control"
+                             placeholder="Начните вводить название кафедры..." data-bs-toggle="dropdown" aria-expanded="false">
+                      <div id="additional-dept-dropdown" class="dropdown-menu w-100 shadow"
+                           style="max-height: 260px; overflow-y: auto;"></div>
+                    </div>
+                  </div>
+                </div>
+                <div class="modal-footer p-3 border-top">
+                  <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Контейнер для дополнительных кафедр -->
+          <div id="additional-departments" class="d-flex flex-wrap gap-2 mt-2"></div>
+        </div>
+      </div>
+
+      <hr class="my-2">
+
+      <!-- Actions + progress -->
+      <div class="d-flex justify-content-between mb-2 align-items-center gap-2">
+        <div class="d-flex align-items-center gap-2">
+          <button id="export-schedule" class="btn btn-success btn-sm" type="button">
+            Экспортировать расписание
+          </button>
+          <button id="approve-schedule-btn" class="btn btn-warning btn-sm" type="button">
+            <i class="bi bi-check2-all me-1"></i>Утвердить расписание
+          </button>
+        </div>
+        <div id="pairs-loading-wrap" class="progress" style="width: 220px; display: none;">
+          <div id="pairs-loading-bar" class="progress-bar" role="progressbar" style="width: 0%;"></div>
+        </div>
+      </div>
+
+      <div id="schedule-grid-scroll-top" class="scroll-sync" aria-hidden="false"><div class="scroll-sync-inner"></div></div>
+      <div class="table-responsive" id="schedule-grid">
+        <table class="table table-bordered align-middle mb-0" id="schedule-grid-table" style="table-layout:fixed;">
+          <thead class="table-light">
+            <tr id="grid-header-row">
+              <th style="width:55px;min-width:55px;max-width:55px;">День</th>
+              <th style="width: 110px;">Пара</th>
+              <!-- JS will insert group columns -->
+            </tr>
+          </thead>
+          <tbody id="grid-body">
+            <!-- JS will insert rows for each day (6 пар) -->
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Контейнер для таблицы аудиторий -->
+      <div class="mt-4" id="rooms-table-container"></div>
+
+    </div>
+  </div>
+
+  <!-- Pair edit modal -->
+  <div id="pair-modal" class="modal" tabindex="-1" style="display:none;">
+    <div class="modal-dialog modal-lg" style="max-width: 900px;">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Заполнение пары</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" id="pair-close" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <form id="pair-form" class="d-flex flex-column gap-3">
+            <div class="row">
+              <div class="col-6">
+                <label class="form-label">Название предмета</label>
+                <div class="position-relative">
+                  <input class="form-control" id="pair-name" data-bs-toggle="dropdown" name="name" placeholder="Начните вводить название..." required autocomplete="off" />
+                  <div id="pair-subject-dropdown" class="dropdown-menu w-100 shadow" style="max-height: 260px; overflow-y: auto;"></div>
+                </div>
+              </div>
+              <div class="col-6" id="pair-rooms-wrap">
+                <label class="form-label">Аудитория (необязательно)</label>
+                <div class="position-relative">
+                  <input id="pair-room-search" type="text" class="form-control" data-bs-toggle="dropdown" placeholder="Начните вводить название аудитории..." autocomplete="off" />
+                  <div id="pair-room-dropdown" class="dropdown-menu w-100 shadow" style="max-height: 260px; overflow-y: auto;"></div>
+                </div>
+              </div>
+            </div>
+
+
+
+            <div id="pair-lecturers-wrap">
+              <label class="form-label">Преподаватели</label>
+              <div id="selected-lecturers" class="border rounded p-2 mb-2" style="min-height: 50px; background-color: #f8f9fa;">
+                <div class="text-muted small">Выбранные преподаватели появятся здесь</div>
+              </div>
+              <div class="d-flex gap-2">
+                <div class="position-relative flex-grow-1">
+                  <select id="lecturer-dropdown" class="form-select" style="display: none;">
+                    <option value="">Выберите преподавателя...</option>
+                  </select>
+                  <input id="lecturer-search" type="text" class="form-control" data-bs-toggle="dropdown" placeholder="Найти преподавателя..." autocomplete="off" />
+                  <div id="lecturer-dropdown-list" class="dropdown-menu w-100 shadow" style="max-height: 260px; overflow-y: auto;"></div>
+                </div>
+              </div>
+              <div class="form-text">Минимум один преподаватель. В списке показаны только свободные преподаватели кафедры на выбранное время.</div>
+            </div>
+            <div id="pair-type-wrap" class="d-flex align-items-center gap-3">
+              <label class="form-label mb-0">Тип пары:</label>
+              <div class="form-check form-check-inline">
+                <input class="form-check-input" type="radio" name="pairType" id="type-lecture" value="LECTURE" />
+                <label class="form-check-label" for="type-lecture">Лекция</label>
+              </div>
+              <div class="form-check form-check-inline">
+                <input class="form-check-input" type="radio" name="pairType" id="type-practice" value="PRACTICE" checked />
+                <label class="form-check-label" for="type-practice">Практика</label>
+              </div>
+            </div>
+            <div id="pair-groups-wrap">
+              <label class="form-label">Группы</label>
+              <div class="border mb-2 rounded p-1" id="modal-groups-container" style="min-height: 40px">
+
+              </div>
+              <div class="position-relative mb-2">
+                <input id="pair-groups-search" type="text" class="form-control" placeholder="Найти группы..." autocomplete="off" />
+              </div>
+              <div class="form-check mb-2">
+                <input class="form-check-input" type="checkbox" id="show-busy-groups">
+                <label class="form-check-label" for="show-busy-groups">Показывать занятые группы</label>
+              </div>
+              <div id="pair-groups-list" class="border rounded p-2 col" style="max-height: 240px; overflow-y: auto;"></div>
+              <div class="form-text">Выберите минимум одну группу. После выбора первой группы остальные будут отфильтрованы по тому же курсу и форме обучения.</div>
+            </div>
+            <div id="repeat-weeks-wrap" class="pt-2 border-top">
+              <div class="d-flex align-items-center justify-content-between mb-2">
+                <label class="form-label mb-0" id="repeat-weeks-title">Повторить по неделям</label>
+              </div>
+              <div id="repeat-weeks-list" class="border rounded p-2" style="max-height: 200px; overflow-y: auto;"></div>
+              <div class="form-text">Выберите недели до 31 августа текущего/следующего года. Будут созданы такие же пары в тот же день и время.</div>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-danger me-auto" id="pair-delete" style="display:none;">Удалить</button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" id="pair-cancel">Отмена</button>
+          <button type="button" class="btn btn-primary" id="pair-save">Сохранить</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</section>
+
+<!-- Copy week from another week Modal -->
+<div id="copy-week-modal" class="modal" tabindex="-1" style="display:none;">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Копировать неделю</h5>
+        <button type="button" class="btn-close" id="copy-week-close" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p class="mb-2 small text-muted">Выберите неделю, из которой нужно скопировать расписание в текущую неделю. Отображаются только недели до текущей.</p>
+        <div id="copy-week-list" class="border rounded p-2" style="max-height: 260px; overflow-y: auto;"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" id="copy-week-cancel">Отмена</button>
+        <button type="button" class="btn btn-primary" id="copy-week-confirm">Скопировать</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Export Period Modal -->
+<div id="export-modal" class="modal" tabindex="-1" style="display:none;">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Экспорт расписания</h5>
+        <button type="button" class="btn-close" id="export-close" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <!-- Переключатель режима -->
+        <div class="mb-3">
+          <div class="form-check form-check-inline">
+            <input class="form-check-input" type="radio" name="export-mode" id="export-mode-students" value="students" checked />
+            <label class="form-check-label" for="export-mode-students">Для студентов</label>
+          </div>
+          <div class="form-check form-check-inline">
+            <input class="form-check-input" type="radio" name="export-mode" id="export-mode-lecturers" value="lecturers" />
+            <label class="form-check-label" for="export-mode-lecturers">Для преподавателей</label>
+          </div>
+        </div>
+        <!-- Выбор периода -->
+        <div class="row g-3 mb-3">
+          <div class="col-12 col-md-6">
+            <label class="form-label" for="export-from">С даты</label>
+            <input type="date" class="form-control" id="export-from" />
+          </div>
+          <div class="col-12 col-md-6">
+            <label class="form-label" for="export-to">По дату</label>
+            <input type="date" class="form-control" id="export-to" />
+          </div>
+        </div>
+        <!-- Выбор кафедры (для преподавателей) -->
+        <div id="export-department-wrap" class="mb-3" style="display:none;">
+          <label class="form-label" for="export-department">Кафедра</label>
+          <select class="form-select" id="export-department"></select>
+        </div>
+        <!-- Выбор групп (для студентов) -->
+        <div id="export-groups-wrap">
+          <label class="form-label">Группы</label>
+          <div class="position-relative mb-2">
+            <input id="export-groups-search" type="text" class="form-control" placeholder="Найти группы..." autocomplete="off" />
+          </div>
+          <div id="export-groups-list" class="border rounded p-2" style="max-height: 200px; overflow-y: auto;"></div>
+          <div class="form-text">Выберите группы для экспорта.</div>
+        </div>
+        <div id="export-hint" class="form-text mt-2">Будет выгружено расписание для выбранных групп за указанный период.</div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" id="export-cancel">Отмена</button>
+        <button type="button" class="btn btn-primary" id="export-confirm">Экспортировать</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Модалка утверждения расписания -->
+<div class="modal fade" id="approveScheduleModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content rounded-4 border-0 shadow">
+      <div class="modal-header border-0">
+        <h5 class="modal-title fw-bold">Утвердить расписание</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p class="text-muted small mb-3">Все пары выбранных кафедр будут утверждены и отобразятся у студентов и преподавателей.</p>
+        <div class="form-check mb-2">
+          <input class="form-check-input" type="checkbox" id="approve-select-all" />
+          <label class="form-check-label fw-semibold" for="approve-select-all">Выбрать все кафедры</label>
+        </div>
+        <hr />
+        <div id="approve-dept-list" class="d-flex flex-column gap-1" style="max-height:300px;overflow-y:auto;"></div>
+      </div>
+      <div class="modal-footer border-0">
+        <button type="button" class="btn btn-light rounded-pill" data-bs-dismiss="modal">Отмена</button>
+        <button type="button" id="approve-confirm-btn" class="btn btn-warning rounded-pill px-4">
+          <i class="bi bi-check2-all me-1"></i>Утвердить
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Модальное окно создания группы -->
+<div id="create-group-modal" class="modal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content bg-white rounded shadow">
+      <div class="modal-header p-3 border-bottom">
+        <h5 class="modal-title mb-0">Добавить группу</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-3">
+        <form id="create-group-form">
+          <div class="mb-3">
+            <label for="group-name-input" class="form-label">Название группы <span class="text-danger">*</span></label>
+            <input id="group-name-input" type="text" class="form-control" placeholder="например, с1-01-20" required>
+          </div>
+          <div class="mb-3">
+            <label for="group-course-input" class="form-label">Курс <span class="text-danger">*</span></label>
+            <select id="group-course-input" class="form-select" required>
+              <option value="">—</option>
+              <option value="1">1</option>
+              <option value="2">2</option>
+              <option value="3">3</option>
+              <option value="4">4</option>
+              <option value="5">5</option>
+              <option value="6">6</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label for="group-eduform-input" class="form-label">Форма обучения <span class="text-danger">*</span></label>
+            <select id="group-eduform-input" class="form-select" required>
+              <option value="">—</option>
+              <option value="FULL_TIME">Очная</option>
+              <option value="PART_TIME">Заочная</option>
+              <option value="MIXED">Очно-заочная</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label for="group-direction-input" class="form-label">Направление <span class="text-danger">*</span></label>
+            <input id="group-direction-input" type="text" class="form-control" required>
+          </div>
+          <div class="mb-3">
+            <label for="group-faculty-input" class="form-label">Факультет <span class="text-danger">*</span></label>
+            <div class="position-relative">
+              <input id="group-faculty-input" type="text" class="form-control" list="faculty-datalist" placeholder="Выберите или введите свой" required>
+              <datalist id="faculty-datalist"></datalist>
+            </div>
+          </div>
+          <div class="mb-3">
+            <label for="group-specialization-input" class="form-label">Специализация</label>
+            <input id="group-specialization-input" type="text" class="form-control">
+          </div>
+          <div class="mb-3">
+            <label for="group-sports-input" class="form-label">Виды спорта (через запятую)</label>
+            <input id="group-sports-input" type="text" class="form-control" placeholder="каратэдо, ушу">
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer p-3 border-top">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+        <button type="button" id="create-group-confirm-btn" class="btn btn-primary">Создать</button>
+      </div>
+    </div>
+  </div>
+</div>`;
+
 let loadedDepartments = [];
 let loadedLecturers = [];
 let loadedRooms = [];
@@ -21,6 +414,18 @@ let weekPairs = [];
 
 async function init() {
     console.log('init START HANDMADE');
+
+    // Вставляем HTML-шаблон расписания в DOM
+    document.getElementById('schedule-root').innerHTML = SCHEDULE_HTML;
+
+    // Динамически загружаем rooms.js (содержит renderRoomsTable)
+    await new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = '/js/pages/schedule/rooms.js';
+        script.onload = resolve;
+        script.onerror = () => reject(new Error('Failed to load rooms.js'));
+        document.head.appendChild(script);
+    });
 
     // Инициализируем модалку с focus: false, чтобы Bootstrap не скроллил страницу при открытии
     $('#pair-modal').modal({ focus: false });

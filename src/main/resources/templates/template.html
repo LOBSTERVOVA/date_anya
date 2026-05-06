@@ -41,7 +41,8 @@
             <main th:insert="~{pages/home/main-page}"></main>
         </div>
         <div class="gray-grad-bg d-flex flex-column h-100" th:if="${index} == 'schedule-page'">
-            <main th:if="${index} == 'schedule-page'" th:insert="~{pages/schedule/schedule}"></main>
+            <main id="schedule-root"></main>
+            <script type="module" src="/js/pages/schedule/schedule-handmade.js"></script>
         </div>
 
         <div class="container py-4" th:if="${index} == 'workload'">
