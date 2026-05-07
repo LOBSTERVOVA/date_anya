@@ -7,8 +7,12 @@
   const fromInput = document.getElementById('wlFrom');
   const toInput = document.getElementById('wlTo');
   const applyBtn = document.getElementById('wlApply');
+  const resetBtn = document.getElementById('wlReset');
   const cardsContainer = document.getElementById('wlCards');
   const summaryEl = document.getElementById('wlSummary');
+  const legendEl = document.getElementById('wlLegend');
+
+  const STORAGE_KEY = 'workloadFilters';
 
   // Значения по умолчанию: с начала семестра по сегодня
   const now = new Date();
@@ -25,6 +29,30 @@
       const resp = await fetch('/api/department');
       allDepartments = (await resp.json())
         .sort((a, b) => a.name.localeCompare(b.name, 'ru'));
+
+      // Автозагрузка из localStorage
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        try {
+          const filters = JSON.parse(saved);
+          if (filters.deptUuid && filters.deptName) {
+            // Проверяем, что кафедра всё ещё существует
+            const found = allDepartments.find(d => d.uuid === filters.deptUuid);
+            if (found) {
+              deptInput.value = found.name;
+              selectedDeptUuid = found.uuid;
+              if (filters.from) fromInput.value = filters.from;
+              if (filters.to) toInput.value = filters.to;
+              await loadWorkload();
+            } else {
+              // Кафедра больше не существует — чистим localStorage
+              localStorage.removeItem(STORAGE_KEY);
+            }
+          }
+        } catch (e) {
+          localStorage.removeItem(STORAGE_KEY);
+        }
+      }
     } catch (e) {
       deptDropdown.innerHTML = '<div class="dropdown-item text-muted">Ошибка загрузки</div>';
     }
@@ -84,7 +112,16 @@
       const data = await resp.json();
       renderCards(data || []);
       summaryEl.textContent = `Найдено преподавателей: ${(data || []).length}`;
-      document.getElementById('wlLegend').classList.remove('d-none');
+      legendEl.classList.remove('d-none');
+
+      // Сохраняем фильтры в localStorage
+      const deptName = deptInput.value;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        deptUuid: selectedDeptUuid,
+        deptName: deptName,
+        from: from,
+        to: to
+      }));
     } catch (e) {
       cardsContainer.innerHTML = '<div class="col-12 text-danger text-center py-5">Не удалось загрузить данные</div>';
     } finally {
@@ -147,7 +184,22 @@
     }).join('');
   }
 
+  /* --- Сбросить --- */
+  function resetWorkload() {
+    localStorage.removeItem(STORAGE_KEY);
+    deptInput.value = '';
+    selectedDeptUuid = null;
+    fromInput.value = semesterStart;
+    toInput.value = new Date().toISOString().slice(0, 10);
+    cardsContainer.innerHTML = '';
+    summaryEl.textContent = '';
+    legendEl.classList.add('d-none');
+  }
+
   /* --- События --- */
   applyBtn.addEventListener('click', loadWorkload);
-  document.addEventListener('DOMContentLoaded', init);
+  resetBtn.addEventListener('click', resetWorkload);
+
+  // Экспортируем init для вызова из workload-tabs.js
+  window.initWorkload = init;
 })();
