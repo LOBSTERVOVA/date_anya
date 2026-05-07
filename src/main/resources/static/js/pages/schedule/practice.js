@@ -1,16 +1,25 @@
 // ==================== PRACTICE MODULE ====================
-// Вкладка «Практика»: выбор групп + пустая сетка дней учебного года + модалка практики
+// Вкладка «Практика»: выбор групп + сетка дней учебного года + модалка практики
 // Лениво загружается schedule-tabs.js при первом переключении
 
-import { fetchGroups } from './api.js';
-import { formatDateDDMM, formatEducationForm, dateToIso } from './utils.js';
+import { fetchGroups, fetchPractices, savePractice } from './api.js';
+import { formatDateDDMM, formatEducationForm, dateToIso, showToast } from './utils.js';
 
 let allGroups = [];
 let selectedGroups = []; // сохраняет порядок выбора чекбоксов
 let academicDates = null; // { startDate, endDate } — кэш учебного года
+let allPractices = []; // загруженные практики для текущей сетки
 
 const FORM_ORDER = { 'FULL_TIME': 0, 'PART_TIME': 1, 'MIXED': 2 };
 const FORM_LABELS = { 'FULL_TIME': 'Очная', 'PART_TIME': 'Заочная', 'MIXED': 'Очно-заочная' };
+
+// Цвета для типов практик (фиксированная палитра)
+const PRACTICE_COLORS = {
+    'EDUCATIONAL':          { bg: '#dbeafe', border: '#3b82f6', text: '#1e40af', label: 'Учебная' },
+    'PRODUCTION':           { bg: '#ffedd5', border: '#f97316', text: '#9a3412', label: 'Производственная' },
+    'PRE_GRADUATION':       { bg: '#ede9fe', border: '#8b5cf6', text: '#5b21b6', label: 'Преддипломная' },
+    'SCIENTIFIC_RESEARCH':  { bg: '#dcfce7', border: '#22c55e', text: '#166534', label: 'Научно-исследовательская' }
+};
 
 export async function init(container) {
     try {
@@ -48,6 +57,9 @@ function renderUI(container) {
 
           <div id="practice-selected-chips" class="d-flex flex-wrap gap-2 mb-3"></div>
 
+          <!-- Легенда -->
+          <div id="practice-legend" class="mb-3" style="display:none;"></div>
+
           <div id="practice-grid-wrap" style="display:none;">
             <div class="table-responsive" style="max-height: 72vh; overflow-y: auto;">
               <table class="table table-bordered align-middle mb-0"
@@ -62,6 +74,44 @@ function renderUI(container) {
               </table>
             </div>
           </div>
+
+          <!-- Статистика практик по группам -->
+          <div id="practice-stats-section" class="mt-4">
+            <h6 class="fw-semibold mb-3 d-flex align-items-center gap-2">
+              <i class="bi bi-bar-chart"></i> Статистика практик
+            </h6>
+            <div class="row g-3 mb-3">
+              <div class="col-auto">
+                <label class="form-label small text-muted">с</label>
+                <input type="date" id="stats-from" class="form-control form-control-sm" style="width:150px;" />
+              </div>
+              <div class="col-auto">
+                <label class="form-label small text-muted">по</label>
+                <input type="date" id="stats-to" class="form-control form-control-sm" style="width:150px;" />
+              </div>
+              <div class="col-auto d-flex align-items-end">
+                <button type="button" class="btn btn-sm btn-outline-secondary" id="stats-refresh-btn">
+                  <i class="bi bi-arrow-repeat"></i>
+                </button>
+              </div>
+              <div class="col-auto d-flex align-items-end ms-auto">
+                <div class="btn-group btn-group-sm" role="group" id="stats-toggle-group">
+                  <input type="radio" class="btn-check" name="stats-filter" id="stats-all" value="all" checked />
+                  <label class="btn btn-outline-secondary" for="stats-all">Все</label>
+                  <input type="radio" class="btn-check" name="stats-filter" id="stats-with" value="with" />
+                  <label class="btn btn-outline-secondary" for="stats-with">С практиками</label>
+                  <input type="radio" class="btn-check" name="stats-filter" id="stats-without" value="without" />
+                  <label class="btn btn-outline-secondary" for="stats-without">Без практик</label>
+                </div>
+              </div>
+            </div>
+            <div class="mb-3">
+              <input type="text" id="stats-group-search" class="form-control form-control-sm"
+                     placeholder="Поиск по группам…" autocomplete="off" />
+            </div>
+            <div id="stats-group-list" class="border rounded p-1"
+                 style="max-height: 60vh; overflow-y: auto;"></div>
+          </div>
         </div>
       </section>
 
@@ -75,7 +125,7 @@ function renderUI(container) {
             </div>
             <div class="modal-body">
               <div class="mb-3">
-                <label class="form-label" for="practice-modal-name">Название практики</label>
+                <label class="form-label" for="practice-modal-name">Название практики <span class="text-muted">(не обязательно)</span></label>
                 <input type="text" class="form-control" id="practice-modal-name"
                        placeholder="Например: Производственная практика" />
               </div>
@@ -91,7 +141,7 @@ function renderUI(container) {
                   <option value="EDUCATIONAL">Учебная</option>
                   <option value="PRODUCTION">Производственная</option>
                   <option value="PRE_GRADUATION">Преддипломная</option>
-                  <option value="RESEARCH">Научно-исследовательская</option>
+                  <option value="SCIENTIFIC_RESEARCH">Научно-исследовательская</option>
                 </select>
               </div>
               <div class="row g-3">
@@ -110,10 +160,14 @@ function renderUI(container) {
                   Запретить пары в период практики
                 </label>
               </div>
+              <div id="practice-modal-error" class="alert alert-danger mt-3" style="display:none;"></div>
             </div>
             <div class="modal-footer">
               <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
-              <button type="button" class="btn btn-primary" id="practice-modal-save">Сохранить</button>
+              <button type="button" class="btn btn-primary" id="practice-modal-save">
+                <span class="spinner-border spinner-border-sm me-1" style="display:none;"></span>
+                Сохранить
+              </button>
             </div>
           </div>
         </div>
@@ -121,13 +175,27 @@ function renderUI(container) {
     `;
 
     container.querySelector('#practice-groups-search').addEventListener('input', () => renderGroupList());
-    container.querySelector('#practice-modal-save').addEventListener('click', () => {
-        // Пока только визуал — просто закрываем
-        const modal = bootstrap.Modal.getInstance(document.getElementById('practice-modal'));
-        if (modal) modal.hide();
-    });
+    container.querySelector('#practice-modal-save').addEventListener('click', () => onSavePractice());
+
+    // Статистика
+    const statsFrom = container.querySelector('#stats-from');
+    const statsTo = container.querySelector('#stats-to');
+    const statsRefresh = container.querySelector('#stats-refresh-btn');
+    const statsSearch = container.querySelector('#stats-group-search');
+    if (statsFrom && statsTo) {
+        const today = new Date();
+        statsFrom.value = dateToIso(today);
+        const nextMonth = new Date(today);
+        nextMonth.setMonth(nextMonth.getMonth() + 1);
+        statsTo.value = dateToIso(nextMonth);
+        statsRefresh?.addEventListener('click', () => loadStats());
+        statsSearch?.addEventListener('input', () => renderStatsList());
+        document.querySelectorAll('#stats-toggle-group input').forEach(r =>
+            r.addEventListener('change', () => renderStatsList()));
+    }
 
     renderGroupList();
+    loadStats();
 }
 
 // ----------------------------------------------------------------
@@ -256,6 +324,7 @@ function renderGrid() {
 
     if (selectedGroups.length === 0) {
         wrap.style.display = 'none';
+        document.getElementById('practice-legend').style.display = 'none';
         return;
     }
 
@@ -318,6 +387,9 @@ function renderGrid() {
     body.innerHTML = '';
     body.appendChild(fragment);
 
+    // Загружаем практики и раскрашиваем
+    loadPractices();
+
     // Скролл к сегодняшней дате
     const today = new Date();
     if (today >= startDate && today <= endDate) {
@@ -327,6 +399,146 @@ function renderGrid() {
             setTimeout(() => row.scrollIntoView({ block: 'center', behavior: 'smooth' }), 100);
         }
     }
+}
+
+// ----------------------------------------------------------------
+//  Загрузка и отображение практик
+// ----------------------------------------------------------------
+
+async function loadPractices() {
+    if (selectedGroups.length === 0) return;
+
+    const { startDate, endDate } = academicDates;
+    const groupUuids = selectedGroups.map(g => g.uuid);
+
+    try {
+        allPractices = await fetchPractices(dateToIso(startDate), dateToIso(endDate), groupUuids);
+    } catch (e) {
+        console.error('Failed to load practices', e);
+        allPractices = [];
+    }
+
+    renderPracticeColors();
+    renderLegend();
+}
+
+function renderPracticeColors() {
+    const body = document.getElementById('practice-grid-body');
+    if (!body) return;
+
+    // Строим индекс: groupUuid → { dateIso → [practices] }
+    const index = {};
+    for (const p of allPractices) {
+        const gUuid = p.groupUuid;
+        if (!index[gUuid]) index[gUuid] = {};
+
+        // Для каждого дня от start до end добавляем практику
+        const start = new Date(p.startDate);
+        const end = new Date(p.endDate);
+        const cur = new Date(start);
+        while (cur <= end) {
+            const iso = dateToIso(cur);
+            if (!index[gUuid][iso]) index[gUuid][iso] = [];
+            // Избегаем дубликатов (одна практика не должна дублироваться)
+            if (!index[gUuid][iso].some(x => x.uuid === p.uuid)) {
+                index[gUuid][iso].push(p);
+            }
+            cur.setDate(cur.getDate() + 1);
+        }
+    }
+
+    // Раскрашиваем ячейки
+    const cells = body.querySelectorAll('.practice-cell');
+    cells.forEach(cell => {
+        const date = cell.dataset.date;
+        const groupUuid = cell.dataset.groupUuid;
+        const practices = (index[groupUuid] && index[groupUuid][date]) || [];
+
+        // Сбрасываем
+        cell.style.background = '';
+        cell.style.backgroundImage = '';
+        cell.title = '';
+
+        if (practices.length === 0) return;
+
+        const hasLock = practices.some(p => p.prohibitPairs);
+        const lockHtml = hasLock ? ' <i class="bi bi-lock-fill" style="font-size:0.55rem;opacity:0.7;"></i>' : '';
+
+        if (practices.length === 1) {
+            const p = practices[0];
+            const colors = PRACTICE_COLORS[p.practiceType] || { bg: '#e5e7eb', border: '#9ca3af', text: '#374151' };
+            cell.style.background = colors.bg;
+            cell.style.borderLeft = `3px solid ${colors.border}`;
+            cell.title = `${p.title || p.practiceType || ''}: ${p.startDate} – ${p.endDate}${p.prohibitPairs ? ' (пары запрещены)' : ''}`;
+            cell.innerHTML = `<span style="font-size:0.7rem;color:${colors.text};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;max-width:100px;">${p.title || ''}${p.prohibitPairs ? lockHtml : ''}</span>`;
+        } else if (practices.length === 2) {
+            // Делим ячейку по диагонали: верх-лево — первая практика, низ-право — вторая
+            const c1 = PRACTICE_COLORS[practices[0].practiceType] || { bg: '#e5e7eb' };
+            const c2 = PRACTICE_COLORS[practices[1].practiceType] || { bg: '#d1d5db' };
+            cell.style.background = `linear-gradient(135deg, ${c1.bg} 50%, ${c2.bg} 50%)`;
+            cell.title = [
+                `${practices[0].title || ''}: ${practices[0].startDate} – ${practices[0].endDate}${practices[0].prohibitPairs ? ' (пары запрещены)' : ''}`,
+                `${practices[1].title || ''}: ${practices[1].startDate} – ${practices[1].endDate}${practices[1].prohibitPairs ? ' (пары запрещены)' : ''}`
+            ].join('\n');
+            cell.innerHTML = hasLock ? `<span style="position:absolute;top:1px;right:2px;font-size:0.55rem;opacity:0.7;">${lockHtml}</span>` : '';
+        } else {
+            // 3+ практик — вертикальные полосы
+            const colors = practices.map(p => PRACTICE_COLORS[p.practiceType] || { bg: '#e5e7eb' });
+            const total = colors.length;
+            const stops = colors.map((c, i) => {
+                const pctStart = (i / total * 100).toFixed(1);
+                const pctEnd = ((i + 1) / total * 100).toFixed(1);
+                return `${c.bg} ${pctStart}%, ${c.bg} ${pctEnd}%`;
+            });
+            cell.style.background = `linear-gradient(90deg, ${stops.join(', ')})`;
+            cell.title = practices.map(p =>
+                `${p.title || ''}: ${p.startDate} – ${p.endDate}${p.prohibitPairs ? ' (пары запрещены)' : ''}`
+            ).join('\n');
+            cell.innerHTML = hasLock ? `<span style="position:absolute;top:1px;right:2px;font-size:0.55rem;opacity:0.7;">${lockHtml}</span>` : '';
+        }
+    });
+}
+
+function renderLegend() {
+    const legend = document.getElementById('practice-legend');
+    if (!legend) return;
+
+    // Собираем уникальные практики (по uuid) которые видны в сетке
+    const seen = new Set();
+    const unique = [];
+    for (const p of allPractices) {
+        if (!seen.has(p.uuid)) {
+            seen.add(p.uuid);
+            unique.push(p);
+        }
+    }
+
+    if (unique.length === 0) {
+        legend.style.display = 'none';
+        return;
+    }
+
+    legend.style.display = 'block';
+    legend.innerHTML = `
+      <div class="d-flex align-items-center gap-2 mb-2">
+        <i class="bi bi-palette"></i>
+        <span class="fw-semibold small">Обозначения практик:</span>
+      </div>
+      <div class="d-flex flex-wrap gap-3">
+        ${unique.map(p => {
+            const colors = PRACTICE_COLORS[p.practiceType] || { bg: '#e5e7eb', border: '#9ca3af', text: '#374151' };
+            const lockIcon = p.prohibitPairs ? ' <i class="bi bi-lock-fill" style="font-size:0.65rem;" title="Пары запрещены"></i>' : '';
+            return `
+              <div class="d-flex align-items-center gap-1">
+                <span style="display:inline-block;width:16px;height:16px;border-radius:3px;background:${colors.bg};border:2px solid ${colors.border};flex-shrink:0;"></span>
+                <span class="small" style="color:${colors.text};">
+                  <strong>${p.title || PRACTICE_COLORS[p.practiceType]?.label || p.practiceType}${lockIcon}</strong>
+                  <span class="text-muted">${formatDateDDMM(new Date(p.startDate))} – ${formatDateDDMM(new Date(p.endDate))}</span>
+                </span>
+              </div>`;
+        }).join('')}
+      </div>
+    `;
 }
 
 // ----------------------------------------------------------------
@@ -356,6 +568,8 @@ function openPracticeModal(dateIso, groupUuid) {
     document.getElementById('practice-modal-name').value = '';
     document.getElementById('practice-modal-type').value = '';
     document.getElementById('practice-modal-block-pairs').checked = false;
+    const errEl = document.getElementById('practice-modal-error');
+    if (errEl) errEl.style.display = 'none';
 
     // Отрисовываем чекбоксы групп в модалке
     renderModalGroups(groupUuid);
@@ -369,7 +583,6 @@ function renderModalGroups(preCheckedUuid) {
     const container = document.getElementById('practice-modal-groups');
     if (!container) return;
 
-    // Показываем все выбранные группы
     if (selectedGroups.length === 0) {
         container.innerHTML = '<span class="text-muted small">Нет выбранных групп</span>';
         return;
@@ -392,8 +605,259 @@ function renderModalGroups(preCheckedUuid) {
 }
 
 // ----------------------------------------------------------------
-//  Учебный год
+//  Сохранение практики
 // ----------------------------------------------------------------
+
+async function onSavePractice() {
+    const name = document.getElementById('practice-modal-name')?.value?.trim();
+    const type = document.getElementById('practice-modal-type')?.value;
+    const startVal = document.getElementById('practice-modal-start')?.value;
+    const endVal = document.getElementById('practice-modal-end')?.value;
+    const prohibitPairs = document.getElementById('practice-modal-block-pairs')?.checked || false;
+    const errEl = document.getElementById('practice-modal-error');
+    const saveBtn = document.getElementById('practice-modal-save');
+
+    // Валидация на фронте
+    if (!type) {
+        showError('Выберите тип практики');
+        return;
+    }
+    if (!startVal || !endVal) {
+        showError('Укажите даты начала и окончания');
+        return;
+    }
+    if (endVal < startVal) {
+        showError('Дата окончания не может быть раньше даты начала');
+        return;
+    }
+
+    // Собираем выбранные группы в модалке
+    const checks = document.querySelectorAll('#practice-modal-groups .practice-modal-group-check:checked');
+    const groupUuids = Array.from(checks).map(cb => cb.value);
+    if (groupUuids.length === 0) {
+        showError('Выберите хотя бы одну группу');
+        return;
+    }
+
+    // Показываем спиннер
+    if (saveBtn) {
+        saveBtn.disabled = true;
+        const spinner = saveBtn.querySelector('.spinner-border');
+        if (spinner) spinner.style.display = 'inline-block';
+    }
+    clearError();
+
+    // Создаём практику для каждой выбранной группы
+    let errors = [];
+    let created = 0;
+    for (const groupUuid of groupUuids) {
+        try {
+            await savePractice({
+                groupUuid: groupUuid,
+                title: name,
+                practiceType: type,
+                startDate: startVal,
+                endDate: endVal,
+                prohibitPairs: prohibitPairs
+            });
+            created++;
+        } catch (e) {
+            errors.push(e.message || 'Ошибка сохранения');
+        }
+    }
+
+    // Восстанавливаем кнопку
+    if (saveBtn) {
+        saveBtn.disabled = false;
+        const spinner = saveBtn.querySelector('.spinner-border');
+        if (spinner) spinner.style.display = 'none';
+    }
+
+    if (errors.length > 0) {
+        showError(errors.join('; '));
+        if (created === 0) return;
+    }
+
+    // Закрываем модалку и обновляем сетку
+    const modalEl = document.getElementById('practice-modal');
+    const modal = bootstrap.Modal.getInstance(modalEl);
+    if (modal) modal.hide();
+
+    await loadPractices();
+
+    const msg = created > 0
+        ? `Создано практик: ${created}` + (errors.length > 0 ? `. Ошибки: ${errors.join('; ')}` : '')
+        : errors.join('; ');
+    showToast(msg, errors.length > 0 ? 'warning' : 'success');
+}
+
+function showError(msg) {
+    const errEl = document.getElementById('practice-modal-error');
+    if (errEl) {
+        errEl.textContent = msg;
+        errEl.style.display = 'block';
+    }
+}
+
+function clearError() {
+    const errEl = document.getElementById('practice-modal-error');
+    if (errEl) errEl.style.display = 'none';
+}
+
+// ----------------------------------------------------------------
+//  Статистика практик по группам
+// ----------------------------------------------------------------
+
+let statsPractices = []; // практики в выбранном диапазоне дат
+let statsLoading = false;
+
+async function loadStats() {
+    if (statsLoading) return;
+    const fromVal = document.getElementById('stats-from')?.value;
+    const toVal = document.getElementById('stats-to')?.value;
+    if (!fromVal || !toVal) return;
+
+    statsLoading = true;
+    try {
+        statsPractices = await fetchPractices(fromVal, toVal, null);
+    } catch (e) {
+        console.error('Stats load error', e);
+        statsPractices = [];
+    } finally {
+        statsLoading = false;
+    }
+    renderStatsList();
+}
+
+function renderStatsList() {
+    const container = document.getElementById('stats-group-list');
+    if (!container) return;
+
+    const fromVal = document.getElementById('stats-from')?.value;
+    const toVal = document.getElementById('stats-to')?.value;
+    if (!fromVal || !toVal) {
+        container.innerHTML = '<div class="text-muted small p-3 text-center">Укажите диапазон дат и нажмите ↻</div>';
+        return;
+    }
+
+    // Загружаем при первом открытии
+    if (statsPractices.length === 0 && allGroups.length > 0) {
+        loadStats();
+        return;
+    }
+
+    // Индекс: groupUuid → [practices]
+    const byGroup = {};
+    for (const p of statsPractices) {
+        if (!byGroup[p.groupUuid]) byGroup[p.groupUuid] = [];
+        byGroup[p.groupUuid].push(p);
+    }
+
+    const query = (document.getElementById('stats-group-search')?.value || '').toLowerCase();
+    const toggleVal = document.querySelector('input[name="stats-filter"]:checked')?.value || 'all';
+
+    const groups = sortGroups(allGroups);
+    let lastCourse = null;
+    let lastForm = null;
+    let html = '';
+    let hasVisible = false;
+
+    for (const g of groups) {
+        const groupPractices = byGroup[g.uuid] || [];
+        const count = groupPractices.length;
+
+        // Фильтр по тогглу
+        if (toggleVal === 'with' && count === 0) continue;
+        if (toggleVal === 'without' && count > 0) continue;
+
+        // Фильтр по поиску
+        if (query && !g.groupName.toLowerCase().includes(query)) continue;
+
+        hasVisible = true;
+
+        // Заголовки курса и формы
+        if (g.course !== lastCourse) {
+            html += `<div class="stats-course-header">${g.course} курс</div>`;
+            lastCourse = g.course;
+            lastForm = null;
+        }
+        if (g.educationForm !== lastForm) {
+            html += `<div class="stats-form-header">${FORM_LABELS[g.educationForm] || g.educationForm}</div>`;
+            lastForm = g.educationForm;
+        }
+
+        const colors = { bg: '#f8fafc', border: '#e2e8f0' };
+        const badgeColor = count > 0 ? 'bg-primary' : 'bg-secondary';
+        const lockCount = groupPractices.filter(p => p.prohibitPairs).length;
+
+        // Доп. инфо: виды спорта → специализация → направление
+        let extraInfo = '';
+        if (g.kindsOfSports && g.kindsOfSports.length > 0) {
+            extraInfo = ` (${g.kindsOfSports.join(', ')})`;
+        } else if (g.specialization) {
+            extraInfo = ` (${g.specialization})`;
+        } else if (g.direction) {
+            extraInfo = ` (${g.direction})`;
+        }
+
+        html += `
+          <div class="stats-group-card mb-1" data-group-uuid="${g.uuid}">
+            <div class="stats-group-header d-flex align-items-center px-3 py-2"
+                 style="background:${colors.bg}; border:1px solid ${colors.border}; border-radius:8px; cursor:pointer;">
+              <i class="bi bi-chevron-right stats-chevron me-2" style="transition: transform 0.2s; font-size:0.75rem;"></i>
+              <span class="fw-medium flex-grow-1">${g.groupName}<span class="text-muted">${extraInfo}</span></span>
+              <span class="text-muted small me-2">${g.faculty || ''}</span>
+              <span class="badge ${badgeColor} rounded-pill me-1" title="Практик в периоде">${count}</span>
+              ${lockCount > 0 ? `<span class="badge bg-warning text-dark rounded-pill" title="Блокируют пары: ${lockCount}"><i class="bi bi-lock-fill" style="font-size:0.6rem;"></i> ${lockCount}</span>` : ''}
+            </div>
+            <div class="stats-group-body" style="display:none; border:1px solid ${colors.border}; border-top:none; border-radius:0 0 8px 8px; background:#fff;">
+              ${groupPractices.length === 0 ? `
+                <div class="text-muted small px-3 py-2">Нет практик в выбранном периоде</div>
+              ` : groupPractices.map(p => {
+                  const pc = PRACTICE_COLORS[p.practiceType] || { bg: '#e5e7eb', border: '#9ca3af', text: '#374151' };
+                  return `
+                    <div class="stats-practice-row d-flex align-items-center px-3 py-2 gap-2"
+                         style="border-bottom:1px solid #f1f5f9;">
+                      <span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${pc.bg};border:1px solid ${pc.border};flex-shrink:0;"></span>
+                      <span class="small fw-medium" style="color:${pc.text};min-width:100px;">
+                        ${p.title || pc.label || p.practiceType}
+                      </span>
+                      <span class="text-muted small">${formatDateDDMM(new Date(p.startDate))} – ${formatDateDDMM(new Date(p.endDate))}</span>
+                      ${p.prohibitPairs ? `
+                        <span class="ms-auto" style="cursor:help;"
+                              data-bs-toggle="tooltip" data-bs-placement="top"
+                              title="Практика блокирует добавление пар">
+                          <i class="bi bi-lock-fill" style="color:#f59e0b;font-size:0.75rem;"></i>
+                        </span>` : ''}
+                    </div>`;
+              }).join('')}
+            </div>
+          </div>`;
+    }
+
+    if (!hasVisible) {
+        html = '<div class="text-muted small p-3 text-center">Нет групп, соответствующих фильтрам</div>';
+    }
+
+    container.innerHTML = html;
+
+    // Клик по заголовку — раскрытие/сворачивание
+    container.querySelectorAll('.stats-group-header').forEach(header => {
+        header.addEventListener('click', () => {
+            const card = header.closest('.stats-group-card');
+            const body = card.querySelector('.stats-group-body');
+            const chevron = card.querySelector('.stats-chevron');
+            const isOpen = body.style.display !== 'none';
+            body.style.display = isOpen ? 'none' : 'block';
+            chevron.style.transform = isOpen ? 'rotate(0deg)' : 'rotate(90deg)';
+        });
+    });
+
+    // Тулипы для замков
+    container.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => {
+        try { new bootstrap.Tooltip(el, { delay: { show: 200, hide: 0 } }); } catch (_) { /* */ }
+    });
+}
 
 function makeAcademicYear() {
     const now = new Date();
@@ -427,9 +891,35 @@ const PRACTICE_STYLES = `
   .practice-cell {
     cursor: pointer;
     transition: background 0.15s;
+    padding: 2px 4px !important;
+    min-width: 100px;
+    vertical-align: middle;
+    position: relative;
   }
   .practice-cell:hover {
-    background: #eff6ff !important;
+    filter: brightness(0.92);
+  }
+  .stats-course-header {
+    font-weight: 700;
+    font-size: 0.8rem;
+    padding: 8px 10px 4px;
+    color: #1e40af;
+    border-bottom: 1px solid #bfdbfe;
+    margin-top: 6px;
+  }
+  .stats-form-header {
+    font-weight: 600;
+    font-size: 0.75rem;
+    padding: 4px 10px 2px;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .stats-group-header:hover {
+    background: #f1f5f9 !important;
+  }
+  .stats-practice-row:last-child {
+    border-bottom: none !important;
   }
 </style>`;
 

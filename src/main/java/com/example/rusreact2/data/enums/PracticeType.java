@@ -4,8 +4,10 @@ import lombok.Getter;
 
 @Getter
 public enum PracticeType {
-    SCIENTIFIC_RESEARCH("Научно-исследовательская"),
-    PRODUCTION("Производственная");
+    EDUCATIONAL("Учебная"),
+    PRODUCTION("Производственная"),
+    PRE_GRADUATION("Преддипломная"),
+    SCIENTIFIC_RESEARCH("Научно-исследовательская");
 
     private final String title;
 

@@ -258,3 +258,41 @@ export function fetchPairsByTime(date, pair) {
     });
   });
 }
+
+// ==================== PRACTICE API ====================
+
+export function fetchPractices(from, to, groupUuids) {
+  return new Promise((resolve, reject) => {
+    const params = { from, to };
+    if (groupUuids && groupUuids.length) params.groupUuids = groupUuids;
+    $.ajax({
+      url: '/api/practice',
+      type: 'GET',
+      traditional: true,
+      dataType: 'json',
+      headers: { 'Accept': 'application/json' },
+      data: params,
+      success: (list) => resolve(list || []),
+      error: (xhr) => { console.error('Practices load error', xhr); reject(new Error('Failed to load practices')); },
+    });
+  });
+}
+
+export function savePractice(payload) {
+  const headers = buildCsrfHeaders();
+  return new Promise((resolve, reject) => {
+    $.ajax({
+      url: '/api/practice',
+      type: 'POST',
+      contentType: 'application/json; charset=UTF-8',
+      dataType: 'json',
+      headers,
+      data: JSON.stringify(payload),
+      success: (saved) => resolve(saved),
+      error: (xhr) => {
+        console.error('Practice save error', xhr);
+        reject(new Error((xhr && xhr.responseJSON && xhr.responseJSON.message) || 'Failed to save practice'));
+      },
+    });
+  });
+}

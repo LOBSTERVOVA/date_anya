@@ -219,13 +219,15 @@ public class ExportService {
                         {"14:50", "16:20"},
                         {"16:40", "18:10"},
                         {"18:30", "20:00"},
+                        {"20:20", "21:50"},
+                        {"22:10", "23:40"},
                 };
 
                 int startRow = rowIdx;
                 for (int dayIdx = 0; dayIdx < 7; dayIdx++) {
                     LocalDate day = ws.plusDays(dayIdx);
-                    int dayBlockStart = startRow + dayIdx * 6;
-                    int dayBlockEnd = dayBlockStart + 5;
+                    int dayBlockStart = startRow + dayIdx * 8;
+                    int dayBlockEnd = dayBlockStart + 7;
 
                     sheet.addMergedRegion(new CellRangeAddress(dayBlockStart, dayBlockEnd, 0, 0));
                     sheet.addMergedRegion(new CellRangeAddress(dayBlockStart, dayBlockEnd, 1, 1));
@@ -234,7 +236,7 @@ public class ExportService {
                     createCell(r, 0, russianDayOfWeek(day.getDayOfWeek()), verticalHeaderStyle);
                     createCell(r, 1, DF.format(day), verticalHeaderStyle);
 
-                    for (int slot = 0; slot < 6; slot++) {
+                    for (int slot = 0; slot < 8; slot++) {
                         Row rr = getOrCreateRow(sheet, dayBlockStart + slot);
                         createCell(rr, 2, times[slot][0] + "-" + times[slot][1], thinCenterStyle);
                     }
@@ -244,7 +246,7 @@ public class ExportService {
 
                     col = 3;
                     for (UUID gid : orderedGroupUuids) {
-                        for (int slot = 0; slot < 6; slot++) {
+                        for (int slot = 0; slot < 8; slot++) {
                             Row rr = getOrCreateRow(sheet, dayBlockStart + slot);
                             String text = pairTextFor(pairs, gid, day, slot + 1,
                                     pairGroupMap, pairLecturerMap, subjectMap, roomMap, lecturerMap);
@@ -614,13 +616,15 @@ public class ExportService {
                         {"14:50", "16:20"},
                         {"16:40", "18:10"},
                         {"18:30", "20:00"},
+                        {"20:20", "21:50"},
+                        {"22:10", "23:40"},
                 };
 
                 int startRow = rowIdx;
                 for (int dayIdx = 0; dayIdx < 7; dayIdx++) {
                     LocalDate day = ws.plusDays(dayIdx);
-                    int dayBlockStart = startRow + dayIdx * 6;
-                    int dayBlockEnd = dayBlockStart + 5;
+                    int dayBlockStart = startRow + dayIdx * 8;
+                    int dayBlockEnd = dayBlockStart + 7;
 
                     sheet.addMergedRegion(new CellRangeAddress(dayBlockStart, dayBlockEnd, 0, 0));
                     sheet.addMergedRegion(new CellRangeAddress(dayBlockStart, dayBlockEnd, 1, 1));
@@ -629,7 +633,7 @@ public class ExportService {
                     createCell(r, 0, russianDayOfWeek(day.getDayOfWeek()), verticalHeaderStyle);
                     createCell(r, 1, DF.format(day), verticalHeaderStyle);
 
-                    for (int slot = 0; slot < 6; slot++) {
+                    for (int slot = 0; slot < 8; slot++) {
                         Row rr = getOrCreateRow(sheet, dayBlockStart + slot);
                         createCell(rr, 2, times[slot][0] + "-" + times[slot][1], thinCenterStyle);
                     }
@@ -639,7 +643,7 @@ public class ExportService {
 
                     col = 3;
                     for (UUID luuid : orderedLecturerUuids) {
-                        for (int slot = 0; slot < 6; slot++) {
+                        for (int slot = 0; slot < 8; slot++) {
                             Row rr = getOrCreateRow(sheet, dayBlockStart + slot);
                             String text = pairTextForLecturer(pairs, luuid, day, slot + 1,
                                     pairGroupMap, pairLecturerMap,

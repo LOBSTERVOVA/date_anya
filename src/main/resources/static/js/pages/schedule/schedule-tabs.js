@@ -73,15 +73,29 @@ async function initTabs() {
     root.innerHTML = TABS_HTML;
 
     // Сразу загружаем модуль расписания (вкладка активна по умолчанию)
-    try {
-        const scheduleModule = await import('./schedule-handmade.js');
+    async function loadScheduleModule() {
         const tabSchedule = document.getElementById('tab-schedule');
-        await scheduleModule.init(tabSchedule);
-    } catch (err) {
-        console.error('Failed to load schedule module:', err);
-        document.getElementById('tab-schedule').innerHTML =
-            '<div class="alert alert-danger m-4">Ошибка загрузки расписания</div>';
+        // Показываем спиннер (на случай повторной попытки)
+        tabSchedule.innerHTML = `<div class="text-center text-muted py-5">
+            <div class="spinner-border text-primary mb-3" role="status"></div>
+            <p>Загрузка расписания…</p>
+        </div>`;
+        try {
+            const scheduleModule = await import('./schedule-handmade.js');
+            await scheduleModule.init(tabSchedule);
+        } catch (err) {
+            console.error('Failed to load schedule module:', err);
+            tabSchedule.innerHTML = `<div class="alert alert-danger m-4 d-flex align-items-center gap-3">
+                <span>Ошибка загрузки расписания</span>
+                <button class="btn btn-outline-danger btn-sm" id="retry-schedule-load">
+                    <i class="bi bi-arrow-clockwise me-1"></i>Повторить
+                </button>
+            </div>`;
+            document.getElementById('retry-schedule-load').addEventListener('click', loadScheduleModule);
+        }
     }
+
+    await loadScheduleModule();
 
     // Практика — ленивая загрузка при первом переключении
     let practiceLoaded = false;

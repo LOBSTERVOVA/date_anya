@@ -57,6 +57,21 @@ const SCHEDULE_HTML = `<section class="container-fluid py-4" id="schedule-page">
           <button id="week-next" class="btn btn-outline-secondary rounded-circle" type="button" aria-label="Следующая неделя">
             <i class="bi bi-chevron-right"></i>
           </button>
+
+          <!-- Прогрессбар загрузки пар (возле переключателя дат) -->
+          <div id="pairs-loader" class="d-flex d-none align-items-center gap-2">
+            <div class="progress" style="width:100px;height:6px;">
+              <div class="progress-bar progress-bar-striped progress-bar-animated" style="width:100%"></div>
+            </div>
+            <small class="text-muted">Загрузка пар…</small>
+          </div>
+          <!-- Ошибка загрузки пар + retry -->
+          <div id="pairs-error" class="d-flex d-none align-items-center gap-2">
+            <small class="text-danger">Ошибка загрузки</small>
+            <button class="btn btn-outline-danger btn-sm py-0" id="pairs-retry-btn" title="Повторить загрузку">
+              <i class="bi bi-arrow-clockwise"></i>
+            </button>
+          </div>
         </div>
 
         <div class="d-flex flex-column flex-grow-1 gap-2" style="max-width: 520px;">
@@ -64,6 +79,21 @@ const SCHEDULE_HTML = `<section class="container-fluid py-4" id="schedule-page">
             <div class="col-12">
               Кафедры
             </div>
+          </div>
+
+          <!-- Прогрессбар загрузки кафедр -->
+          <div id="depts-loader" class="d-flex d-none align-items-center gap-2 py-1">
+            <div class="progress" style="max-width:180px;height:6px;flex-grow:1;">
+              <div class="progress-bar progress-bar-striped progress-bar-animated" style="width:100%"></div>
+            </div>
+            <small class="text-muted">Загрузка кафедр…</small>
+          </div>
+          <!-- Ошибка загрузки кафедр + retry -->
+          <div id="depts-error" class="d-flex d-none align-items-center gap-2 py-1">
+            <small class="text-danger">Не удалось загрузить кафедры</small>
+            <button class="btn btn-outline-danger btn-sm py-0" id="depts-retry-btn" title="Повторить загрузку">
+              <i class="bi bi-arrow-clockwise"></i>
+            </button>
           </div>
 
           <!-- Кнопка добавления кафедры -->
@@ -439,103 +469,127 @@ async function init(container) {
      * Инициализация стартовых переменных
      */
 
+    // Хелпер: управление состоянием «загрузка / ошибка / скрыто»
+    // Используем Bootstrap-класс d-none (!important), а не inline style
+    function setLoadingState(loaderId, errorId, state) {
+        const loader = document.getElementById(loaderId);
+        const error = document.getElementById(errorId);
+        if (loader) {
+            loader.classList.toggle('d-none', state !== 'loading');
+        }
+        if (error) {
+            error.classList.toggle('d-none', state !== 'error');
+        }
+    }
+
     // Загружаем все кафедры
-    try {
-        loadedDepartments = await fetchDepartments('');
-        loadedDepartments.sort((a, b) => a.name.localeCompare(b.name, 'ru'));
 
-        console.log('Loaded departments:', loadedDepartments.length);
-        loadedDepartments.forEach(dep => {
-            const depsDropdown = $('#additional-dept-dropdown');
+    // Поиск и выбор кафедр в дропдауне (вынесен наружу для retry)
+    function populateDepartmentDropdown(search) {
+        const $dropdown = $('#additional-dept-dropdown');
+        $dropdown.empty();
 
-        })
+        const filteredDepts = loadedDepartments.filter(dept =>
+            dept.name.toLowerCase().includes(search.toLowerCase()) && !selectedDepartments.some(selected => selected.uuid === dept.uuid)
+        );
+        console.log('populateDepartmentDropdown')
+        console.log(filteredDepts.length)
+        if (filteredDepts.length > 0) {
+            filteredDepts.forEach(dept => {
+                const $item = $(`
+                    <div class="dropdown-item py-2 px-3 text-wrap">${dept.name}</div>
+                    <hr class="m-0 p-0">
+                `)
+                $item.on('click', function (e) {
+                    e.preventDefault();
+                    selectedDepartments.push(dept);
+                    console.log(selectedDepartments);
+                    // после нажатия нужно переделать список дропдауна, чтобы в нем не было выбранной кафедры и очистить поле поиска кафедры
+                    populateDepartmentDropdown('');
+                    $('#additional-dept-search').val('')
+                    $dropdown.removeClass('show');
+                    $('#additional-department-modal').modal('hide');
 
-        populateDepartmentDropdown('')
+                    // добавляем кафедру в контейнер
+                    const $container = $('#additional-departments');
+                    if (!$container.length) return;
 
-        $('#additional-dept-search').on('input', function() {
-            const searchTerm = $(this).val();
-            populateDepartmentDropdown(searchTerm);
-
-            // Показываем/скрываем выпадающий список
-            const $dropdown = $('#additional-dept-dropdown');
-            if (searchTerm.length > 0) {
-                $dropdown.addClass('show');
-            } else {
-                $dropdown.removeClass('show');
-            }
-        });
-
-        function populateDepartmentDropdown(search) {
-            const $dropdown = $('#additional-dept-dropdown');
-            $dropdown.empty();
-
-            const filteredDepts = loadedDepartments.filter(dept =>
-                dept.name.toLowerCase().includes(search.toLowerCase()) && !selectedDepartments.some(selected => selected.uuid === dept.uuid)
-            );
-            console.log('populateDepartmentDropdown')
-            console.log(filteredDepts.length)
-            if (filteredDepts.length > 0) {
-                filteredDepts.forEach(dept => {
-                    const $item = $(`
-                        <div class="dropdown-item py-2 px-3 text-wrap">${dept.name}</div>
-                        <hr class="m-0 p-0">
-                    `)
-                    $item.on('click', function (e) {
-                        e.preventDefault();
-                        selectedDepartments.push(dept);
-                        console.log(selectedDepartments);
-                        // после нажатия нужно переделать список дропдауна, чтобы в нем не было выбранной кафедры и очистить поле поиска кафедры
-                        populateDepartmentDropdown('');
-                        $('#additional-dept-search').val('')
-                        $dropdown.removeClass('show');
-                        $('#additional-department-modal').modal('hide');
-
-                        // добавляем кафедру в контейнер
-                        const $container = $('#additional-departments');
-                        if (!$container.length) return;
-
-                        const $deptEl = $(`
-                            <div class="d-flex align-items-center gap-2 p-2 border rounded bg-light" id="dept-${dept.uuid}">
-                                <span class="fw-medium">${dept.name}</span>
+                    const $deptEl = $(`
+                        <div class="d-flex align-items-center gap-2 p-2 border rounded bg-light" id="dept-${dept.uuid}">
+                            <span class="fw-medium">${dept.name}</span>
 <!--                                <span class="text-muted small">(${dept.lecturers.length} преподавателей)</span>-->
-                                <button class="btn btn-sm btn-outline-danger remove-dept-btn ms-auto" data-dept-id="dept-${dept.uuid}">
-                                    <i class="bi bi-x"></i>
-                                </button>
-                            </div>
-                        `);
+                            <button class="btn btn-sm btn-outline-danger remove-dept-btn ms-auto" data-dept-id="dept-${dept.uuid}">
+                                <i class="bi bi-x"></i>
+                            </button>
+                        </div>
+                    `);
 
-                        // Добавляем обработчик удаления
-                        $deptEl.find('.remove-dept-btn').on('click', function() {
-                            selectedDepartments = selectedDepartments.filter(item => item.uuid !== dept.uuid);
-                            $deptEl.fadeOut(300, function() {
-                                $(this).remove();  // Удаляем сам элемент после анимации
-                            });
-                            console.log('Обновленный массив:', selectedDepartments);
-                            populateDepartmentDropdown('');
-                            renderTable();
+                    // Добавляем обработчик удаления
+                    $deptEl.find('.remove-dept-btn').on('click', function() {
+                        selectedDepartments = selectedDepartments.filter(item => item.uuid !== dept.uuid);
+                        $deptEl.fadeOut(300, function() {
+                            $(this).remove();  // Удаляем сам элемент после анимации
                         });
-
-                        $container.append($deptEl);
-
+                        console.log('Обновленный массив:', selectedDepartments);
+                        populateDepartmentDropdown('');
                         renderTable();
                     });
-                    $dropdown.append($item);
-                    console.log('adding department to dd')
-                })
-            } else {
-                // Если ничего не найдено
-                $dropdown.append($('<div>', {
-                    class: 'dropdown-item text-muted py-2 px-3',
-                    text: 'Кафедры не найдены'
-                }));
-            }
-        }
 
-    } catch (e) {
-        console.error('Failed to load departments', e);
-        showToast('Не удалось загрузить кафедры, перезагрузите страницу', 'danger', 'Ошибка');
-        loadedDepartments = [];
+                    $container.append($deptEl);
+
+                    renderTable();
+                });
+                $dropdown.append($item);
+                console.log('adding department to dd')
+            })
+        } else {
+            // Если ничего не найдено
+            $dropdown.append($('<div>', {
+                class: 'dropdown-item text-muted py-2 px-3',
+                text: 'Кафедры не найдены'
+            }));
+        }
     }
+
+    // Обработчик поиска кафедр (вешаем один раз)
+    $('#additional-dept-search').on('input', function() {
+        const searchTerm = $(this).val();
+        populateDepartmentDropdown(searchTerm);
+
+        // Показываем/скрываем выпадающий список
+        const $dropdown = $('#additional-dept-dropdown');
+        if (searchTerm.length > 0) {
+            $dropdown.addClass('show');
+        } else {
+            $dropdown.removeClass('show');
+        }
+    });
+
+    async function loadDepartments() {
+        setLoadingState('depts-loader', 'depts-error', 'loading');
+        let failed = false;
+        try {
+            loadedDepartments = await fetchDepartments('');
+            loadedDepartments.sort((a, b) => a.name.localeCompare(b.name, 'ru'));
+            console.log('Loaded departments:', loadedDepartments.length);
+            try {
+                populateDepartmentDropdown('');
+            } catch (popErr) {
+                console.error('populateDepartmentDropdown error', popErr);
+            }
+        } catch (e) {
+            console.error('Failed to load departments', e);
+            loadedDepartments = [];
+            failed = true;
+        } finally {
+            setLoadingState('depts-loader', 'depts-error', failed ? 'error' : 'idle');
+        }
+    }
+
+    await loadDepartments();
+
+    // Retry-кнопка для кафедр
+    $('#depts-retry-btn').off('click').on('click', loadDepartments);
 
     // Загружаем всех преподавателей
     try {
@@ -628,12 +682,31 @@ async function init(container) {
     // // Инициализируем импорт расписания
     // initImportSchedule();
 
+    // Retry-кнопка для пар
+    $('#pairs-retry-btn').off('click').on('click', renderTable);
+
     async function renderTable() {
         if (selectedDepartments.length === 0) console.log(`selectedDepartments.length ${selectedDepartments.length}`)
         if (selectedDepartments.length === 0) return;
 
+        setLoadingState('pairs-loader', 'pairs-error', 'loading');
+        let failed = false;
+
         weekPairs = []
-        weekPairs = await fetchWeekPairsBatch(dateToIso(weekStart));
+        try {
+            weekPairs = await fetchWeekPairsBatch(dateToIso(weekStart));
+        } catch (e) {
+            console.error('Failed to load week pairs', e);
+            showToast('Не удалось загрузить пары', 'danger', 'Ошибка');
+            failed = true;
+            return;
+        } finally {
+            if (failed) {
+                setLoadingState('pairs-loader', 'pairs-error', 'error');
+            } else {
+                setLoadingState('pairs-loader', 'pairs-error', 'idle');
+            }
+        }
         window.weekPairs = weekPairs;
 
         const daysOfWeek = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
