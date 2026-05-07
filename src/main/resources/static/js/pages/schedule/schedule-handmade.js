@@ -184,6 +184,11 @@ const SCHEDULE_HTML = `<section class="container-fluid py-4" id="schedule-page">
           <button type="button" class="btn-close" data-bs-dismiss="modal" id="pair-close" aria-label="Close"></button>
         </div>
         <div class="modal-body">
+          <!-- Предупреждение о прошедшем дне -->
+          <div id="pair-past-warning" class="alert alert-warning d-none mb-3">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+            Этот день уже прошёл — редактировать и создавать пары на прошедший день нельзя.
+          </div>
           <form id="pair-form" class="d-flex flex-column gap-3">
             <div class="row">
               <div class="col-6">
@@ -463,6 +468,13 @@ async function init(container) {
     // Фиксируем позицию скролла при открытии/закрытии модалки
     let modalScrollY = 0;
     $('#pair-modal').on('show.bs.modal', () => { modalScrollY = window.scrollY; })
+    $('#pair-modal').on('hidden.bs.modal', () => {
+        // Очищаем предупреждение о прошедшем дне при закрытии
+        $('#pair-past-warning').addClass('d-none');
+        // Сбрасываем блокировку полей
+        $('#pair-save').prop('disabled', false);
+        $('#pair-form').find('input, select, textarea, button').prop('disabled', false);
+    })
                     .on('shown.bs.modal', () => { window.scrollTo(0, modalScrollY); });
 
     /**
@@ -894,6 +906,18 @@ async function init(container) {
                 showToast(msg, 'danger');
             }
         });
+
+        // Проверка: прошедший день — нельзя редактировать/создавать
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const cellDate = new Date(date);
+        cellDate.setHours(0, 0, 0, 0);
+        const isPast = cellDate < today;
+        $('#pair-past-warning').toggleClass('d-none', !isPast);
+        // Блокируем кнопку сохранения и форму для прошедших дней
+        $('#pair-save').prop('disabled', isPast);
+        $('#pair-form').find('input, select, textarea, button').not('#pair-cancel, #pair-delete, #pair-close, .btn-close')
+            .prop('disabled', isPast);
 
         // инициализация предметов
         initModalSubjects('', subjects)

@@ -84,6 +84,7 @@
       const data = await resp.json();
       renderCards(data || []);
       summaryEl.textContent = `Найдено преподавателей: ${(data || []).length}`;
+      document.getElementById('wlLegend').classList.remove('d-none');
     } catch (e) {
       cardsContainer.innerHTML = '<div class="col-12 text-danger text-center py-5">Не удалось загрузить данные</div>';
     } finally {
