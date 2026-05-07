@@ -44,7 +44,7 @@ function renderUI(container) {
       <section class="container-fluid py-4">
         <div class="bg-white rounded-4 shadow p-4">
           <h5 class="mb-3 fw-semibold">
-            <i class="bi bi-briefcase me-2"></i>Выбор групп для практики
+            <i class="bi bi-briefcase me-2"></i>Выбор групп для создания практики
           </h5>
 
           <div class="position-relative mb-3">

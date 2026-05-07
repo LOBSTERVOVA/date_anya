@@ -58,11 +58,9 @@ const TABS_HTML = `
     </div>
 
     <div class="tab-pane fade" id="tab-practice" role="tabpanel" tabindex="0">
-      <div class="container-fluid py-4 text-center text-muted d-flex align-items-center justify-content-center" style="min-height:300px;">
-        <div>
-          <i class="bi bi-briefcase display-1 d-block mb-3 opacity-50"></i>
-          <p class="fs-5">Раздел «Практика» в разработке</p>
-        </div>
+      <div class="text-center text-muted py-5">
+        <div class="spinner-border text-primary mb-3" role="status"></div>
+        <p>Загрузка практики…</p>
       </div>
     </div>
   </div>
@@ -109,8 +107,14 @@ async function initTabs() {
             const tabPractice = document.getElementById('tab-practice');
             await practiceModule.init(tabPractice);
         } catch (err) {
-            // Модуля практики ещё нет — оставляем заглушку
-            console.log('Practice module not available yet, placeholder shown.');
+            console.error('Failed to load practice module:', err);
+            const tabPractice = document.getElementById('tab-practice');
+            tabPractice.innerHTML = `<div class="alert alert-danger m-4 d-flex align-items-center gap-3">
+                <span>Ошибка загрузки раздела «Практика»</span>
+                <button class="btn btn-outline-danger btn-sm" onclick="location.reload()">
+                    <i class="bi bi-arrow-clockwise me-1"></i>Обновить
+                </button>
+            </div>`;
         }
     });
 }
