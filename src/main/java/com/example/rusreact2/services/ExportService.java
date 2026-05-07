@@ -6,12 +6,14 @@ import com.example.rusreact2.data.models.Department;
 import com.example.rusreact2.data.models.Group;
 import com.example.rusreact2.data.models.Lecturer;
 import com.example.rusreact2.data.models.Pair;
+import com.example.rusreact2.data.models.Practice;
 import com.example.rusreact2.data.models.Room;
 import com.example.rusreact2.data.models.Subject;
 import com.example.rusreact2.repositories.DepartmentRepository;
 import com.example.rusreact2.repositories.GroupRepository;
 import com.example.rusreact2.repositories.LecturerRepository;
 import com.example.rusreact2.repositories.PairRepository;
+import com.example.rusreact2.repositories.PracticeRepository;
 import com.example.rusreact2.repositories.RoomRepository;
 import com.example.rusreact2.repositories.SubjectRepository;
 import lombok.RequiredArgsConstructor;
@@ -38,6 +40,7 @@ import java.util.stream.Collectors;
 public class ExportService {
 
     private final PairRepository pairRepository;
+    private final PracticeRepository practiceRepository;
     private final GroupRepository groupRepository;
     private final SubjectRepository subjectRepository;
     private final RoomRepository roomRepository;
@@ -85,10 +88,29 @@ public class ExportService {
                 .findByGroupUuidsAndDateBetween(groupUuids, exportFrom, exportTo)
                 .collectList();
 
-        return Mono.zip(groupsMono, pairsMono)
+        // 2b. Загружаем практики с запретом пар для этих групп и периода
+        Mono<Map<UUID, Set<LocalDate>>> blockingDaysMono = practiceRepository
+                .findByGroupUuidsAndDateOverlap(groupUuids, exportFrom, exportTo)
+                .filter(p -> p.isProhibitPairs())
+                .collectList()
+                .map(practices -> {
+                    Map<UUID, Set<LocalDate>> result = new HashMap<>();
+                    for (Practice p : practices) {
+                        result.computeIfAbsent(p.getGroupUuid(), k -> new HashSet<>());
+                        LocalDate cur = p.getStartDate();
+                        while (!cur.isAfter(p.getEndDate())) {
+                            result.get(p.getGroupUuid()).add(cur);
+                            cur = cur.plusDays(1);
+                        }
+                    }
+                    return result;
+                });
+
+        return Mono.zip(groupsMono, pairsMono, blockingDaysMono)
                 .flatMap(tuple -> {
                     Map<UUID, Group> groupMap = tuple.getT1();
                     List<Pair> pairs = tuple.getT2();
+                    Map<UUID, Set<LocalDate>> blockingDays = tuple.getT3();
 
                     if (pairs.isEmpty() || groupMap.isEmpty()) {
                         return Mono.just(new byte[0]);
@@ -129,7 +151,8 @@ public class ExportService {
                             .map(dataTuple -> buildExcel(
                                     weekStarts, groupUuids, groupMap, pairs,
                                     pairGroupMap, pairLecturerMap,
-                                    dataTuple.getT1(), dataTuple.getT2(), dataTuple.getT3()
+                                    dataTuple.getT1(), dataTuple.getT2(), dataTuple.getT3(),
+                                    blockingDays
                             ));
                 })
                 // Excel-генерация — блокирующая, выносим на boundedElastic
@@ -145,7 +168,8 @@ public class ExportService {
             Map<UUID, Set<UUID>> pairLecturerMap,
             Map<UUID, Subject> subjectMap,
             Map<UUID, Room> roomMap,
-            Map<UUID, Lecturer> lecturerMap
+            Map<UUID, Lecturer> lecturerMap,
+            Map<UUID, Set<LocalDate>> blockingDays
     ) {
         try (Workbook wb = new XSSFWorkbook()) {
 
@@ -155,6 +179,7 @@ public class ExportService {
             CellStyle thinCenterStyle = createThinCenterStyle(wb);
             CellStyle verticalHeaderStyle = createVerticalHeaderStyle(wb);
             CellStyle infoStyle = createInfoStyle(wb);
+            CellStyle practiceStyle = createPracticeStyle(wb);
 
             // Собираем сводку по курсам и формам обучения
             Set<Integer> courses = new TreeSet<>();
@@ -246,12 +271,22 @@ public class ExportService {
 
                     col = 3;
                     for (UUID gid : orderedGroupUuids) {
+                        boolean groupBlocked = blockingDays.containsKey(gid)
+                                && blockingDays.get(gid).contains(day);
                         for (int slot = 0; slot < 8; slot++) {
                             Row rr = getOrCreateRow(sheet, dayBlockStart + slot);
-                            String text = pairTextFor(pairs, gid, day, slot + 1,
-                                    pairGroupMap, pairLecturerMap, subjectMap, roomMap, lecturerMap);
+                            String text;
+                            CellStyle cellStyle;
+                            if (groupBlocked) {
+                                text = "Практика";
+                                cellStyle = practiceStyle;
+                            } else {
+                                text = pairTextFor(pairs, gid, day, slot + 1,
+                                        pairGroupMap, pairLecturerMap, subjectMap, roomMap, lecturerMap);
+                                cellStyle = wrapStyle;
+                            }
                             Cell c = rr.createCell(col);
-                            c.setCellStyle(wrapStyle);
+                            c.setCellStyle(cellStyle);
                             c.setCellValue(text);
                         }
                         col++;
@@ -452,6 +487,21 @@ public class ExportService {
         style.setFont(font);
         style.setAlignment(HorizontalAlignment.LEFT);
         style.setVerticalAlignment(VerticalAlignment.CENTER);
+        return style;
+    }
+
+    private CellStyle createPracticeStyle(Workbook wb) {
+        CellStyle style = wb.createCellStyle();
+        Font font = wb.createFont();
+        font.setBold(true);
+        font.setFontHeightInPoints((short) 14);
+        style.setFont(font);
+        style.setAlignment(HorizontalAlignment.CENTER);
+        style.setVerticalAlignment(VerticalAlignment.CENTER);
+        style.setBorderTop(BorderStyle.THIN);
+        style.setBorderBottom(BorderStyle.THIN);
+        style.setBorderLeft(BorderStyle.THIN);
+        style.setBorderRight(BorderStyle.THIN);
         return style;
     }
 
