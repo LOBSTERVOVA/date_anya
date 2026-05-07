@@ -2,7 +2,7 @@
 // Вкладка «Практика»: выбор групп + сетка дней учебного года + модалка практики
 // Лениво загружается schedule-tabs.js при первом переключении
 
-import { fetchGroups, fetchPractices, savePractice } from './api.js';
+import { fetchGroups, fetchPractices, savePractice, deletePractice } from './api.js';
 import { formatDateDDMM, formatEducationForm, dateToIso, showToast } from './utils.js';
 
 let allGroups = [];
@@ -815,6 +815,7 @@ function renderStatsList() {
                 <div class="text-muted small px-3 py-2">Нет практик в выбранном периоде</div>
               ` : groupPractices.map(p => {
                   const pc = PRACTICE_COLORS[p.practiceType] || { bg: '#e5e7eb', border: '#9ca3af', text: '#374151' };
+                  const isPast = new Date(p.startDate) <= new Date(); // уже началась — удалить нельзя
                   return `
                     <div class="stats-practice-row d-flex align-items-center px-3 py-2 gap-2"
                          style="border-bottom:1px solid #f1f5f9;">
@@ -824,11 +825,17 @@ function renderStatsList() {
                       </span>
                       <span class="text-muted small">${formatDateDDMM(new Date(p.startDate))} – ${formatDateDDMM(new Date(p.endDate))}</span>
                       ${p.prohibitPairs ? `
-                        <span class="ms-auto" style="cursor:help;"
+                        <span style="cursor:help;"
                               data-bs-toggle="tooltip" data-bs-placement="top"
                               title="Практика блокирует добавление пар">
                           <i class="bi bi-lock-fill" style="color:#f59e0b;font-size:0.75rem;"></i>
                         </span>` : ''}
+                      <button type="button" class="btn btn-sm btn-outline-danger ms-auto stats-delete-btn"
+                              data-practice-uuid="${p.uuid}"
+                              ${isPast ? 'disabled title="Нельзя удалить уже начавшуюся практику"' : ''}
+                              style="padding: 0 6px; font-size: 0.9rem; border: none;">
+                        <i class="bi bi-trash3"></i>
+                      </button>
                     </div>`;
               }).join('')}
             </div>
@@ -856,6 +863,24 @@ function renderStatsList() {
     // Тулипы для замков
     container.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => {
         try { new bootstrap.Tooltip(el, { delay: { show: 200, hide: 0 } }); } catch (_) { /* */ }
+    });
+
+    // Клик по кнопке удаления
+    container.querySelectorAll('.stats-delete-btn:not([disabled])').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            const uuid = btn.dataset.practiceUuid;
+            if (!confirm('Удалить практику?')) return;
+            try {
+                await deletePractice(uuid);
+                showToast('Практика удалена', 'success');
+                // Обновляем данные сетки и статистики
+                if (selectedGroups.length > 0) await loadPractices();
+                await loadStats();
+            } catch (err) {
+                showToast(err.message || 'Ошибка удаления', 'danger');
+            }
+        });
     });
 }
 

@@ -296,3 +296,19 @@ export function savePractice(payload) {
     });
   });
 }
+
+export function deletePractice(uuid) {
+  const headers = buildCsrfHeaders();
+  return new Promise((resolve, reject) => {
+    $.ajax({
+      url: '/api/practice/' + uuid,
+      type: 'DELETE',
+      headers,
+      success: () => resolve(),
+      error: (xhr) => {
+        console.error('Practice delete error', xhr);
+        reject(new Error((xhr && xhr.responseJSON && xhr.responseJSON.message) || 'Failed to delete practice'));
+      },
+    });
+  });
+}

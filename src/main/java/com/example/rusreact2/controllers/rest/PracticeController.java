@@ -39,4 +39,11 @@ public class PracticeController {
         log.info("getPractices: from={}, to={}, groups={}", from, to, groupUuids);
         return practiceService.getPractices(groupUuids, from, to);
     }
+
+    /// Удаление практики
+    @DeleteMapping("/{uuid}")
+    public Mono<Void> deletePractice(@PathVariable UUID uuid) {
+        log.info("deletePractice: uuid={}", uuid);
+        return practiceService.deletePractice(uuid);
+    }
 }

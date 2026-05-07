@@ -118,4 +118,20 @@ public class PracticeService {
         return practiceRepository.findByGroupUuidsAndDateOverlap(groupUuids, from, to)
                 .map(PracticeDto::from);
     }
+
+    /// Удаление практики. Нельзя удалить уже начавшуюся практику.
+    public Mono<Void> deletePractice(UUID uuid) {
+        return practiceRepository.findById(uuid)
+                .switchIfEmpty(Mono.error(new ResponseStatusException(HttpStatus.NOT_FOUND, "Практика не найдена")))
+                .flatMap(practice -> {
+                    if (practice.getStartDate().isBefore(LocalDate.now())) {
+                        return Mono.error(new ResponseStatusException(
+                                HttpStatus.BAD_REQUEST, "Нельзя удалить уже начавшуюся практику"));
+                    }
+                    log.info("Удаление практики: uuid={}, groupUuid={}, type={}, {} – {}",
+                            uuid, practice.getGroupUuid(), practice.getPracticeType(),
+                            practice.getStartDate(), practice.getEndDate());
+                    return practiceRepository.deleteById(uuid);
+                });
+    }
 }
