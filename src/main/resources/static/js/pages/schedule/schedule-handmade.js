@@ -225,7 +225,7 @@ const SCHEDULE_HTML = `<section class="container-fluid py-4" id="schedule-page">
               </div>
               <div class="form-text">Минимум один преподаватель. В списке показаны только свободные преподаватели кафедры на выбранное время.</div>
             </div>
-            <div id="pair-type-wrap" class="d-flex align-items-center gap-3">
+            <div id="pair-type-wrap" class="d-flex align-items-center gap-3 flex-wrap">
               <label class="form-label mb-0">Тип пары:</label>
               <div class="form-check form-check-inline">
                 <input class="form-check-input" type="radio" name="pairType" id="type-lecture" value="LECTURE" />
@@ -234,6 +234,18 @@ const SCHEDULE_HTML = `<section class="container-fluid py-4" id="schedule-page">
               <div class="form-check form-check-inline">
                 <input class="form-check-input" type="radio" name="pairType" id="type-practice" value="PRACTICE" checked />
                 <label class="form-check-label" for="type-practice">Практика</label>
+              </div>
+              <div class="form-check form-check-inline">
+                <input class="form-check-input" type="radio" name="pairType" id="type-credit" value="CREDIT" />
+                <label class="form-check-label" for="type-credit">Зачет</label>
+              </div>
+              <div class="form-check form-check-inline">
+                <input class="form-check-input" type="radio" name="pairType" id="type-differentiated-credit" value="DIFFERENTIATED_CREDIT" />
+                <label class="form-check-label" for="type-differentiated-credit">Диф. зачет</label>
+              </div>
+              <div class="form-check form-check-inline">
+                <input class="form-check-input" type="radio" name="pairType" id="type-exam" value="EXAM" />
+                <label class="form-check-label" for="type-exam">Экзамен</label>
               </div>
             </div>
             <div id="pair-groups-wrap">
@@ -842,8 +854,15 @@ async function init(container) {
         weekPairs.forEach(pair => {
             pair.lecturers?.forEach(lecturer => {
                 let newDate = new Date(pair.date)
-                const isLecture = pair.type === 'LECTURE';
-                const typeBadge = `<span class="badge ${isLecture ? 'bg-primary' : 'bg-success'} position-absolute top-0 end-0 m-1 fw-normal" style="font-size:.6rem;">${isLecture ? 'Л' : 'П'}</span>`;
+                const typeMap = {
+                    LECTURE: { cls: 'bg-primary', letter: 'Л' },
+                    PRACTICE: { cls: 'bg-success', letter: 'П' },
+                    CREDIT: { cls: 'bg-warning', letter: 'З' },
+                    DIFFERENTIATED_CREDIT: { cls: 'bg-info', letter: 'ДЗ' },
+                    EXAM: { cls: 'bg-danger', letter: 'Э' }
+                };
+                const t = typeMap[pair.type] || { cls: 'bg-success', letter: 'П' };
+                const typeBadge = `<span class="badge ${t.cls} position-absolute top-0 end-0 m-1 fw-normal" style="font-size:.6rem;">${t.letter}</span>`;
                 console.log(`#${newDate.getFullYear()}-${newDate.getMonth()}-${newDate.getDate()}-${pair.pairOrder}-${lecturer.uuid}`)
                 $(`#${newDate.getFullYear()}-${newDate.getMonth()}-${newDate.getDate()}-${pair.pairOrder}-${lecturer.uuid}`)
                     .html(`

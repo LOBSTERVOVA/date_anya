@@ -5,7 +5,10 @@ import lombok.Getter;
 @Getter
 public enum LessonType {
     LECTURE ("Лекции"),
-    PRACTICE("Практические занятия");
+    PRACTICE("Практические занятия"),
+    CREDIT("Зачет"),
+    DIFFERENTIATED_CREDIT("Дифференцированный зачет"),
+    EXAM("Экзамен");
 
     LessonType(String title) {}
 }

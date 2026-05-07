@@ -160,16 +160,22 @@ public class LecturerService {
                             Set<UUID> lecs = p.getLecturerUuids();
                             UUID subj = p.getSubjectUuid();
                             if (lecs == null || subj == null) continue;
-                            boolean isLecture = p.getType() == com.example.rusreact2.data.enums.LessonType.LECTURE;
-                            int lecAdd = isLecture ? 1 : 0;
-                            int pracAdd = isLecture ? 0 : 1;
+                            com.example.rusreact2.data.enums.LessonType type = p.getType();
+                            int lecAdd = type == com.example.rusreact2.data.enums.LessonType.LECTURE ? 1 : 0;
+                            int pracAdd = type == com.example.rusreact2.data.enums.LessonType.PRACTICE ? 1 : 0;
+                            int creditAdd = type == com.example.rusreact2.data.enums.LessonType.CREDIT ? 1 : 0;
+                            int diffCreditAdd = type == com.example.rusreact2.data.enums.LessonType.DIFFERENTIATED_CREDIT ? 1 : 0;
+                            int examAdd = type == com.example.rusreact2.data.enums.LessonType.EXAM ? 1 : 0;
                             for (UUID lecUuid : lecs) {
                                 if (!lecMap.containsKey(lecUuid)) continue;
                                 int[] arr = stats.computeIfAbsent(lecUuid, k -> new LinkedHashMap<>())
-                                        .computeIfAbsent(subj, k -> new int[4]); // [total, lec, prac, dummy]
-                                arr[0]++;          // total pairs
-                                arr[1] += lecAdd;  // lecture pairs
-                                arr[2] += pracAdd; // practice pairs
+                                        .computeIfAbsent(subj, k -> new int[6]); // [total, lec, prac, credit, diffCredit, exam]
+                                arr[0]++;               // total pairs
+                                arr[1] += lecAdd;       // lecture pairs
+                                arr[2] += pracAdd;      // practice pairs
+                                arr[3] += creditAdd;    // credit pairs
+                                arr[4] += diffCreditAdd;// differentiated credit pairs
+                                arr[5] += examAdd;      // exam pairs
                             }
                         }
 
@@ -187,7 +193,7 @@ public class LecturerService {
                                     dto.setAcademicTitle(lec.getAcademicTitle());
 
                                     Map<UUID, int[]> lecStats = stats.getOrDefault(lec.getUuid(), Map.of());
-                                    int total = 0, totalLec = 0, totalPrac = 0;
+                                    int total = 0, totalLec = 0, totalPrac = 0, totalCredit = 0, totalDiffCredit = 0, totalExam = 0;
                                     List<LecturerWorkloadDto.SubjectStat> subjList = new ArrayList<>();
 
                                     for (var entry : lecStats.entrySet()) {
@@ -201,10 +207,19 @@ public class LecturerService {
                                         ss.setLectureHours(arr[1] * 2);
                                         ss.setPracticePairs(arr[2]);
                                         ss.setPracticeHours(arr[2] * 2);
+                                        ss.setCreditPairs(arr[3]);
+                                        ss.setCreditHours(arr[3] * 2);
+                                        ss.setDifferentiatedCreditPairs(arr[4]);
+                                        ss.setDifferentiatedCreditHours(arr[4] * 2);
+                                        ss.setExamPairs(arr[5]);
+                                        ss.setExamHours(arr[5] * 2);
                                         subjList.add(ss);
                                         total += arr[0];
                                         totalLec += arr[1];
                                         totalPrac += arr[2];
+                                        totalCredit += arr[3];
+                                        totalDiffCredit += arr[4];
+                                        totalExam += arr[5];
                                     }
                                     subjList.sort(Comparator.comparing(LecturerWorkloadDto.SubjectStat::getPairCount).reversed());
 
@@ -214,6 +229,12 @@ public class LecturerService {
                                     dto.setTotalLectureHours(totalLec * 2);
                                     dto.setTotalPracticePairs(totalPrac);
                                     dto.setTotalPracticeHours(totalPrac * 2);
+                                    dto.setTotalCreditPairs(totalCredit);
+                                    dto.setTotalCreditHours(totalCredit * 2);
+                                    dto.setTotalDifferentiatedCreditPairs(totalDiffCredit);
+                                    dto.setTotalDifferentiatedCreditHours(totalDiffCredit * 2);
+                                    dto.setTotalExamPairs(totalExam);
+                                    dto.setTotalExamHours(totalExam * 2);
                                     dto.setSubjects(subjList);
                                     return dto;
                                 });

@@ -112,7 +112,7 @@ Spring Boot 4.0.6 • WebFlux • R2DBC • PostgreSQL • Apache POI
 | `lecturers` | `List<LecturerDto>` | Преподаватели |
 | `groups` | `List<GroupDto>` | Группы |
 | `isActive` | `Boolean` | Утверждена ли |
-| `type` | `LessonType` | `LECTURE` / `PRACTICE` |
+| `type` | `LessonType` | `LECTURE` / `PRACTICE` / `CREDIT` / `DIFFERENTIATED_CREDIT` / `EXAM` |
 
 ### SubjectDto
 | Поле | Тип | Описание |
@@ -194,11 +194,20 @@ Spring Boot 4.0.6 • WebFlux • R2DBC • PostgreSQL • Apache POI
 | `totalLectureHours` | `int` | Лекционных часов |
 | `totalPracticePairs` | `int` | Практических пар |
 | `totalPracticeHours` | `int` | Практических часов |
+| `totalCreditPairs` | `int` | Зачётных пар |
+| `totalCreditHours` | `int` | Зачётных часов |
+| `totalDifferentiatedCreditPairs` | `int` | Пар диф. зачёта |
+| `totalDifferentiatedCreditHours` | `int` | Часов диф. зачёта |
+| `totalExamPairs` | `int` | Экзаменационных пар |
+| `totalExamHours` | `int` | Экзаменационных часов |
 | `subjects` | `List<SubjectStat>` | Статистика по предметам |
 | `subjects[].subjectName` | `String` | |
 | `subjects[].pairCount` / `.hours` | `int` | |
 | `subjects[].lecturePairs` / `.lectureHours` | `int` | |
 | `subjects[].practicePairs` / `.practiceHours` | `int` | |
+| `subjects[].creditPairs` / `.creditHours` | `int` | |
+| `subjects[].differentiatedCreditPairs` / `.differentiatedCreditHours` | `int` | |
+| `subjects[].examPairs` / `.examHours` | `int` | |
 
 ### Import DTO (CSV)
 | DTO | Поля |
@@ -330,7 +339,7 @@ Spring Boot 4.0.6 • WebFlux • R2DBC • PostgreSQL • Apache POI
 
 | Enum | Значения |
 |------|----------|
-| `LessonType` | `LECTURE`, `PRACTICE` |
+| `LessonType` | `LECTURE`, `PRACTICE`, `CREDIT`, `DIFFERENTIATED_CREDIT`, `EXAM` |
 | `EducationForm` | `FULL_TIME` («Очная»), `PART_TIME` («Заочная»), `MIXED` («Очно-заочная») |
 | `AcademicTitle` | (учёные звания преподавателей) |
 | `NewsType` | (типы новостей) |

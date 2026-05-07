@@ -56,10 +56,9 @@ const WORKLOAD_TABS_HTML = `
 
     <!-- Вкладка «Нагрузка студентов» -->
     <div class="tab-pane fade" id="tab-students" role="tabpanel" tabindex="0">
-      <div class="text-center py-5">
-        <i class="bi bi-cone-striped" style="font-size:3rem;color:#94a3b8;"></i>
-        <p class="mt-3 text-muted fs-5">Раздел в разработке</p>
-        <p class="text-muted small">Нагрузка студентов появится здесь позже</p>
+      <div class="text-center text-muted py-5">
+        <div class="spinner-border text-primary mb-3" role="status"></div>
+        <p>Загрузка нагрузки студентов…</p>
       </div>
     </div>
   </div>
@@ -110,7 +109,10 @@ const TEACHERS_TAB_CONTENT = `
     <div id="wlLegend" class="alert alert-info py-2 px-3 small mb-3 d-none">
       <i class="bi bi-info-circle me-2"></i>
       <span class="text-primary fw-medium">Л</span> — лекция,
-      <span class="text-success fw-medium">П</span> — практика.
+      <span class="text-success fw-medium">П</span> — практика,
+      <span class="text-warning fw-medium">З</span> — зачет,
+      <span class="text-info fw-medium">ДЗ</span> — диф. зачет,
+      <span class="text-danger fw-medium">Э</span> — экзамен.
       Все значения указаны в <strong>часах</strong> за выбранный период.
     </div>
     <div id="wlCards" class="row g-3"></div>
@@ -120,6 +122,8 @@ const TEACHERS_TAB_CONTENT = `
 async function initWorkloadTabs() {
   const root = document.getElementById('workload-root');
   root.innerHTML = WORKLOAD_TABS_HTML;
+
+  const TAB_STORAGE_KEY = 'workloadActiveTab';
 
   // Загружаем контент вкладки «Нагрузка преподавателей»
   const tabTeachers = document.getElementById('tab-teachers');
@@ -137,6 +141,55 @@ async function initWorkloadTabs() {
   // Вызываем инициализацию
   if (window.initWorkload) {
     await window.initWorkload();
+  }
+
+  // Студенты — ленивая загрузка при первом переключении
+  let studentsLoaded = false;
+  const tabBtnStudents = document.getElementById('tab-btn-students');
+  const tabBtnTeachers = document.getElementById('tab-btn-teachers');
+
+  async function loadStudentsTab() {
+    if (studentsLoaded) return;
+    studentsLoaded = true;
+    try {
+      await new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = '/js/pages/departments/student-workload.js';
+        script.onload = resolve;
+        script.onerror = () => reject(new Error('Failed to load student-workload.js'));
+        document.head.appendChild(script);
+      });
+      const tabStudents = document.getElementById('tab-students');
+      if (window.initStudentWorkload) {
+        await window.initStudentWorkload(tabStudents);
+      }
+    } catch (err) {
+      console.error('Failed to load student workload module:', err);
+      const tabStudents = document.getElementById('tab-students');
+      tabStudents.innerHTML = `<div class="alert alert-danger m-4 d-flex align-items-center gap-3">
+        <span>Ошибка загрузки раздела «Нагрузка студентов»</span>
+        <button class="btn btn-outline-danger btn-sm" onclick="location.reload()">
+          <i class="bi bi-arrow-clockwise me-1"></i>Обновить
+        </button>
+      </div>`;
+    }
+  }
+
+  tabBtnStudents.addEventListener('shown.bs.tab', async () => {
+    localStorage.setItem(TAB_STORAGE_KEY, 'students');
+    await loadStudentsTab();
+  });
+
+  tabBtnTeachers.addEventListener('shown.bs.tab', () => {
+    localStorage.setItem(TAB_STORAGE_KEY, 'teachers');
+  });
+
+  // Восстанавливаем активную вкладку
+  const savedTab = localStorage.getItem(TAB_STORAGE_KEY);
+  if (savedTab === 'students') {
+    const bsTab = new bootstrap.Tab(tabBtnStudents);
+    bsTab.show();
+    await loadStudentsTab();
   }
 }
 

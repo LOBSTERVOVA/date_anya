@@ -375,6 +375,9 @@ public class CsvImportRunner implements ApplicationRunner {
         String v = s.trim().toLowerCase(Locale.ROOT);
         if (v.contains("лекц")) return LessonType.LECTURE;
         if (v.contains("практ")) return LessonType.PRACTICE;
+        if (v.contains("диф")) return LessonType.DIFFERENTIATED_CREDIT;
+        if (v.contains("зач")) return LessonType.CREDIT;
+        if (v.contains("экз")) return LessonType.EXAM;
         try {
             return LessonType.valueOf(s.trim());
         } catch (Exception ignored) {

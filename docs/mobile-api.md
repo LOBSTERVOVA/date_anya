@@ -379,6 +379,9 @@ UUID: строка в стандартном формате (`xxxxxxxx-xxxx-xxxx
 |----------|----------|
 | `LECTURE` | Лекции |
 | `PRACTICE` | Практические занятия |
+| `CREDIT` | Зачет |
+| `DIFFERENTIATED_CREDIT` | Дифференцированный зачет |
+| `EXAM` | Экзамен |
 
 ### EducationForm
 | Значение | Описание |

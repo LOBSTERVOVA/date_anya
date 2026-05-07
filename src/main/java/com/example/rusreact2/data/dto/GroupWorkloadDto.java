@@ -1,19 +1,23 @@
 package com.example.rusreact2.data.dto;
 
-import com.example.rusreact2.data.enums.AcademicTitle;
+import com.example.rusreact2.data.enums.EducationForm;
 import lombok.Data;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 @Data
-public class LecturerWorkloadDto {
+public class GroupWorkloadDto {
     UUID uuid;
-    String lastName;
-    String firstName;
-    String patronymic;
-    String avatar;
-    AcademicTitle academicTitle;
+    String groupName;
+    int course;
+    EducationForm educationForm;
+    String faculty;
+    String direction;
+    String specialization;
+    Set<String> kindsOfSports;
+
     int totalPairs;
     int totalHours;
     int totalLecturePairs;
@@ -26,7 +30,9 @@ public class LecturerWorkloadDto {
     int totalDifferentiatedCreditHours;
     int totalExamPairs;
     int totalExamHours;
+
     List<SubjectStat> subjects = new ArrayList<>();
+    List<PracticeDto> practices = new ArrayList<>();
 
     @Data
     public static class SubjectStat {

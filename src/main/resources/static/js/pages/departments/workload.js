@@ -144,6 +144,9 @@
             const parts = [];
             if (s.lecturePairs) parts.push(`<span class="text-primary fw-medium">Л: ${s.lectureHours} ч</span>`);
             if (s.practicePairs) parts.push(`<span class="text-success fw-medium">П: ${s.practiceHours} ч</span>`);
+            if (s.creditPairs) parts.push(`<span class="text-warning fw-medium">З: ${s.creditHours} ч</span>`);
+            if (s.differentiatedCreditPairs) parts.push(`<span class="text-info fw-medium">ДЗ: ${s.differentiatedCreditHours} ч</span>`);
+            if (s.examPairs) parts.push(`<span class="text-danger fw-medium">Э: ${s.examHours} ч</span>`);
             return `<div class="d-flex justify-content-between small"><span>${s.subjectName}</span><span>${parts.join('  ')}</span></div>`;
           }).join('')
         : '<div class="text-muted small">Нет пар</div>';
@@ -162,6 +165,9 @@
       const totalParts = [];
       if (l.totalLecturePairs) totalParts.push(`<span class="text-primary">Л: ${l.totalLectureHours} ч</span>`);
       if (l.totalPracticePairs) totalParts.push(`<span class="text-success">П: ${l.totalPracticeHours} ч</span>`);
+      if (l.totalCreditPairs) totalParts.push(`<span class="text-warning">З: ${l.totalCreditHours} ч</span>`);
+      if (l.totalDifferentiatedCreditPairs) totalParts.push(`<span class="text-info">ДЗ: ${l.totalDifferentiatedCreditHours} ч</span>`);
+      if (l.totalExamPairs) totalParts.push(`<span class="text-danger">Э: ${l.totalExamHours} ч</span>`);
 
       return `
         <div class="col-12 col-md-6 col-xl-4">
