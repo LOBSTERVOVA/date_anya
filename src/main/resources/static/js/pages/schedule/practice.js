@@ -188,7 +188,7 @@ function renderUI(container) {
         const nextMonth = new Date(today);
         nextMonth.setMonth(nextMonth.getMonth() + 1);
         statsTo.value = dateToIso(nextMonth);
-        statsRefresh?.addEventListener('click', () => loadStats());
+        statsRefresh?.addEventListener('click', () => { statsLoaded = false; loadStats(); });
         statsSearch?.addEventListener('input', () => renderStatsList());
         document.querySelectorAll('#stats-toggle-group input').forEach(r =>
             r.addEventListener('change', () => renderStatsList()));
@@ -710,6 +710,7 @@ function clearError() {
 
 let statsPractices = []; // практики в выбранном диапазоне дат
 let statsLoading = false;
+let statsLoaded = false;
 
 async function loadStats() {
     if (statsLoading) return;
@@ -720,12 +721,12 @@ async function loadStats() {
     statsLoading = true;
     try {
         statsPractices = await fetchPractices(fromVal, toVal, null);
-        console.debug('[stats] loadStats: fetched %d practices for %s – %s', statsPractices.length, fromVal, toVal);
     } catch (e) {
         console.error('Stats load error', e);
         statsPractices = [];
     } finally {
         statsLoading = false;
+        statsLoaded = true;
     }
     renderStatsList();
 }
@@ -739,18 +740,13 @@ function renderStatsList() {
     const toggleVal = document.querySelector('input[name="stats-filter"]:checked')?.value || 'all';
     const query = (document.getElementById('stats-group-search')?.value || '').toLowerCase();
 
-    console.debug('[stats] renderStatsList: allGroups=%d, statsPractices=%d, statsLoading=%s, from=%s, to=%s, toggle=%s, query="%s"',
-        allGroups.length, statsPractices.length, statsLoading, fromVal, toVal, toggleVal, query);
-
     if (!fromVal || !toVal) {
         container.innerHTML = '<div class="text-muted small p-3 text-center">Укажите диапазон дат и нажмите ↻</div>';
-        console.debug('[stats] renderStatsList: missing dates, showing placeholder');
         return;
     }
 
     // Загружаем при первом открытии
-    if (statsPractices.length === 0 && allGroups.length > 0) {
-        console.debug('[stats] renderStatsList: no practices yet, triggering loadStats()');
+    if (!statsLoaded) {
         loadStats();
         return;
     }
@@ -853,8 +849,6 @@ function renderStatsList() {
     }
 
     container.innerHTML = html;
-    console.debug('[stats] renderStatsList: rendered, hasVisible=%s, htmlLength=%d, groupsTotal=%d',
-        hasVisible, html.length, groups.length);
 
     // Клик по заголовку — раскрытие/сворачивание
     container.querySelectorAll('.stats-group-header').forEach(header => {
