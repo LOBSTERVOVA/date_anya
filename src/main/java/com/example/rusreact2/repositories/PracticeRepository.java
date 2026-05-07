@@ -55,4 +55,19 @@ public interface PracticeRepository extends R2dbcRepository<Practice, UUID> {
     Flux<Practice> findByDateOverlap(
             @Param("fromDate") LocalDate fromDate,
             @Param("toDate") LocalDate toDate);
+
+    /// Практики, блокирующие создание пар: для групп на конкретную дату
+    /// где prohibit_pairs = TRUE и дата попадает в диапазон практики
+    @Query("""
+        SELECT p.uuid, p.group_uuid, p.title, p.practice_type,
+               p.start_date, p.end_date, p.prohibit_pairs
+        FROM practices p
+        WHERE p.group_uuid IN (:groupUuids)
+          AND p.start_date <= :date
+          AND p.end_date >= :date
+          AND p.prohibit_pairs = TRUE
+        """)
+    Flux<Practice> findBlockingPractices(
+            @Param("groupUuids") List<UUID> groupUuids,
+            @Param("date") LocalDate date);
 }

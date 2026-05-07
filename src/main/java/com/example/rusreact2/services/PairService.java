@@ -4,6 +4,7 @@ import com.example.rusreact2.data.dto.*;
 import com.example.rusreact2.data.models.Lecturer;
 import com.example.rusreact2.data.models.Group;
 import com.example.rusreact2.data.models.Pair;
+import com.example.rusreact2.data.models.Practice;
 import com.example.rusreact2.repositories.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -27,6 +28,7 @@ public class PairService {
     private final GroupRepository groupRepository;
     private final RoomRepository roomRepository;
     private final SubjectRepository subjectRepository;
+    private final PracticeRepository practiceRepository;
 
     /// Получить пары для недели по группе
     /// Функция включает приватные методы для получения связанных данных (лекторы, группы, аудитории, предметы)
@@ -102,6 +104,8 @@ public class PairService {
     /// Проверки:
     /// - преподаватели не заняты в это время (кроме самой редактируемой пары)
     /// - группы не заняты в это время (кроме самой редактируемой пары)
+    /// - у групп нет активной практики с запретом пар (prohibitPairs=true) на дату пары
+    ///   (если prohibitPairs=false — пару можно создать во время практики)
     /// - аудитория не занята (если указана, кроме самой редактируемой пары)
     /// - все преподаватели и предмет относятся к одной кафедре
     public Mono<PairDto> savePair(Pair pair) {
@@ -221,24 +225,57 @@ public class PairService {
                                                 }
                                             }
 
-                                            // Проверка: аудитория не занята
-                                            if (p.getRoomUuid() != null) {
-                                                for (Pair existing : existingPairs) {
-                                                    if (p.getRoomUuid().equals(existing.getRoomUuid())) {
-                                                        return roomRepository.findById(p.getRoomUuid())
-                                                                .flatMap(room -> Mono.error(new ResponseStatusException(
-                                                                        HttpStatus.CONFLICT,
-                                                                        "Аудитория занята в это время: " + room.getTitle())));
-                                                    }
-                                                }
+                                            // Проверка: у групп нет практик с запретом пар на эту дату
+                                            // (если prohibitPairs=false — пару можно создать во время практики)
+                                            Mono<Pair> practiceCheckMono;
+                                            if (!groupUuids.isEmpty()) {
+                                                practiceCheckMono = practiceRepository.findBlockingPractices(
+                                                                new ArrayList<>(groupUuids), p.getDate())
+                                                        .collectList()
+                                                        .flatMap(blockingPractices -> {
+                                                            if (!blockingPractices.isEmpty()) {
+                                                                Set<UUID> blockedGroupUuids = blockingPractices.stream()
+                                                                        .map(Practice::getGroupUuid)
+                                                                        .collect(Collectors.toSet());
+                                                                return Flux.fromIterable(blockedGroupUuids)
+                                                                        .flatMap(groupRepository::findById)
+                                                                        .collectList()
+                                                                        .flatMap(blockedGroups -> {
+                                                                            String names = blockedGroups.stream()
+                                                                                    .map(Group::getGroupName)
+                                                                                    .collect(Collectors.joining(", "));
+                                                                            return Mono.error(new ResponseStatusException(
+                                                                                    HttpStatus.CONFLICT,
+                                                                                    "Нельзя создать пару: у групп " + names
+                                                                                            + " в этот день действует практика, запрещающая проведение пар"));
+                                                                        });
+                                                            }
+                                                            return Mono.just(p);
+                                                        });
+                                            } else {
+                                                practiceCheckMono = Mono.just(p);
                                             }
 
-                                            // Все проверки пройдены — сохраняем
-                                            // Новая пара: isActive = false;
-                                            // Редактирование: сбрасываем в false (пара становится неутверждённой)
-                                            p.setIsActive(false);
-                                            return pairRepository.save(p)
-                                                    .flatMap(this::convertPairToPairDto);
+                                            return practiceCheckMono.flatMap(pp -> {
+                                                // Проверка: аудитория не занята
+                                                if (pp.getRoomUuid() != null) {
+                                                    for (Pair existing : existingPairs) {
+                                                        if (pp.getRoomUuid().equals(existing.getRoomUuid())) {
+                                                            return roomRepository.findById(pp.getRoomUuid())
+                                                                    .flatMap(room -> Mono.error(new ResponseStatusException(
+                                                                            HttpStatus.CONFLICT,
+                                                                            "Аудитория занята в это время: " + room.getTitle())));
+                                                        }
+                                                    }
+                                                }
+
+                                                // Все проверки пройдены — сохраняем
+                                                // Новая пара: isActive = false;
+                                                // Редактирование: сбрасываем в false (пара становится неутверждённой)
+                                                pp.setIsActive(false);
+                                                return pairRepository.save(pp)
+                                                        .flatMap(this::convertPairToPairDto);
+                                            });
                                         })
                         );
                     });
