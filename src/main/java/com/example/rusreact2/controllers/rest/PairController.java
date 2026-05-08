@@ -1,5 +1,7 @@
 package com.example.rusreact2.controllers.rest;
 
+import com.example.rusreact2.data.dto.CloneRequest;
+import com.example.rusreact2.data.dto.CloneResponse;
 import com.example.rusreact2.data.dto.PairDto;
 import com.example.rusreact2.data.models.Pair;
 import com.example.rusreact2.services.PairService;
@@ -54,6 +56,14 @@ public class PairController {
         log.info("approvePairs: departments={}", departmentUuids);
         if (departmentUuids.isEmpty()) return Mono.just(0);
         return pairService.approvePairs(departmentUuids);
+    }
+
+    @PostMapping("/clone")
+    public Mono<CloneResponse> cloneWeek(@RequestBody CloneRequest request) {
+        log.info("cloneWeek: departmentUuid={}, sourceDate={}, targetDate={}, lecturers={}, days={}",
+                request.getDepartmentUuid(), request.getSourceDate(), request.getTargetDate(),
+                request.getLecturerUuids(), request.getDaysOfWeek());
+        return pairService.cloneWeek(request);
     }
 
 }

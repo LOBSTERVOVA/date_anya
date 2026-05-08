@@ -7,6 +7,7 @@ import com.example.rusreact2.data.models.Pair;
 import com.example.rusreact2.data.models.Practice;
 import com.example.rusreact2.repositories.*;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -21,6 +22,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class PairService {
     private final PairRepository pairRepository;
@@ -280,6 +282,250 @@ public class PairService {
                         );
                     });
         });
+    }
+
+    /// Клонирование недели: копирует пары с исходной недели на целевую.
+    /// Фильтрует по кафедре, списку преподавателей и дням недели.
+    /// Для каждой пары вызывает savePair, при ошибках собирает отчёт.
+    ///
+    /// Логика работы:
+    /// 1. Валидация обязательных полей: departmentUuid, sourceDate, targetDate
+    /// 2. Определение границ исходной недели (понедельник–воскресенье) от sourceDate
+    /// 3. Определение понедельника целевой недели от targetDate — для расчёта сдвига дат
+    /// 4. Построение множеств-фильтров:
+    ///    - allowedDays: выбранные пользователем дни недели (или все, если не указаны)
+    ///    - allowedLecturers: выбранные преподаватели (или null = все преподаватели кафедры)
+    /// 5. Загрузка всех пар за исходную неделю из БД (findByDateBetween)
+    /// 6. Фильтрация пар:
+    ///    - день недели пары должен быть в allowedDays
+    ///    - хотя бы один преподаватель пары должен быть в allowedLecturers (если фильтр задан)
+    ///    Примечание: пара копируется целиком со всеми преподавателями, даже если выбран только один из них
+    /// 7. Последовательная обработка отфильтрованных пар (Flux.fromIterable):
+    ///    a. Вычисление сдвига в днях между исходным и целевым понедельниками
+    ///    b. Создание объекта-копии Pair:
+    ///       - uuid = null (новая пара, а не редактирование)
+    ///       - дата = исходная дата + сдвиг дней (сохраняется тот же день недели)
+    ///       - pairOrder, subjectUuid, roomUuid, type — копируются как есть
+    ///       - lecturerUuids, groupUuids — копируются в новые HashSet (во избежание shared references)
+    ///       - isActive = false (новая пара неутверждённая, как при ручном создании)
+    ///    c. Вызов savePair(newPair) — проходит полную валидацию как при создании пары вручную:
+    ///       - проверка даты (не в прошлом)
+    ///       - проверка предмета и его существования
+    ///       - проверка, что все преподаватели относятся к кафедре предмета
+    ///       - проверка занятости преподавателей на это время
+    ///       - проверка занятости групп на это время
+    ///       - проверка практик с запретом пар (prohibitPairs=true)
+    ///       - проверка занятости аудитории
+    ///       - при успехе: сохранение в БД и увеличение successCount
+    ///    d. При ошибке (onErrorResume):
+    ///       - извлечение причины из исключения (ResponseStatusException.getReason() или getMessage())
+    ///       - для каждого преподавателя пары создаётся запись CloneError:
+    ///         день недели, номер пары, ФИО преподавателя, причина ошибки
+    ///       - если преподавателей в паре нет — запись с прочерком вместо имени
+    ///       - ошибка не прерывает обработку остальных пар (Mono.empty() / then)
+    /// 8. Возврат CloneResponse с итоговым successCount и списком ошибок
+        /// Клонирование недели: копирует пары с исходной недели на целевую.
+    /// Фильтрует по кафедре, списку преподавателей и дням недели.
+    /// Для каждой пары вызывает savePair, при ошибках собирает отчёт.
+    ///
+    /// Логика работы:
+    /// 1. Валидация обязательных полей: departmentUuid, sourceDate, targetDate
+    /// 2. Определение границ исходной недели (понедельник–воскресенье) от sourceDate
+    /// 3. Определение понедельника целевой недели от targetDate — для расчёта сдвига дат
+    /// 4. Загрузка всех преподавателей указанной кафедры (departmentUuid)
+    /// 5. Формирование множества разрешённых преподавателей:
+    ///    - если lecturerUuids не пуст — фильтруем: только преподаватели кафедры из списка
+    ///    - если lecturerUuids пуст — все преподаватели кафедры
+    /// 6. Загрузка всех пар за исходную неделю из БД (findByDateBetween)
+    /// 7. Фильтрация пар:
+    ///    - день недели пары должен быть в allowedDays
+    ///    - хотя бы один преподаватель пары должен быть в allowedLecturers
+    ///    Примечание: пара копируется целиком со всеми преподавателями, даже если выбран только один из них
+    /// 8. Последовательная обработка отфильтрованных пар (Flux.fromIterable):
+    ///    a. Вычисление сдвига в днях между исходным и целевым понедельниками
+    ///    b. Создание объекта-копии Pair
+    ///    c. Вызов savePair(newPair) — полная валидация как при создании пары вручную
+    ///    d. При ошибке (onErrorResume): сбор информации в CloneError, продолжение цикла
+    /// 9. Возврат CloneResponse с итоговым successCount и списком ошибок
+    public Mono<CloneResponse> cloneWeek(CloneRequest request) {
+        UUID departmentUuid = request.getDepartmentUuid();
+        LocalDate sourceDate = request.getSourceDate();
+        LocalDate targetDate = request.getTargetDate();
+        List<UUID> lecturerUuids = request.getLecturerUuids();
+        List<java.time.DayOfWeek> daysOfWeek = request.getDaysOfWeek();
+
+        log.info("cloneWeek: ЗАПРОС departmentUuid={}, sourceDate={}, targetDate={}, lecturerUuids={}, daysOfWeek={}",
+                departmentUuid, sourceDate, targetDate, lecturerUuids, daysOfWeek);
+
+        // Проверка обязательных полей
+        if (departmentUuid == null || sourceDate == null || targetDate == null) {
+            log.warn("cloneWeek: обязательные поля не заполнены");
+            return Mono.error(new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "departmentUuid, sourceDate и targetDate обязательны"));
+        }
+
+        // Определяем понедельники исходной и целевой недели
+        java.time.DayOfWeek monday = java.time.DayOfWeek.MONDAY;
+        LocalDate sourceMonday = sourceDate.with(monday);
+        LocalDate targetMonday = targetDate.with(monday);
+        LocalDate sourceSunday = sourceMonday.plusDays(6);
+
+        log.info("cloneWeek: исходная неделя {} — {}, целевой понедельник={}",
+                sourceMonday, sourceSunday, targetMonday);
+
+        // Множество дней недели для фильтрации: если не указаны — копируем все дни
+        Set<java.time.DayOfWeek> allowedDays = (daysOfWeek != null && !daysOfWeek.isEmpty())
+                ? new HashSet<>(daysOfWeek)
+                : Set.of(java.time.DayOfWeek.values());
+        log.info("cloneWeek: разрешённые дни недели={}", allowedDays);
+
+        // Загружаем преподавателей кафедры и формируем множество разрешённых преподавателей
+        return lecturerRepository.findByDepartmentUuid(departmentUuid)
+                .collectList()
+                .flatMap(deptLecturers -> {
+                    log.info("cloneWeek: найдено преподавателей кафедры={}", deptLecturers.size());
+
+                    if (deptLecturers.isEmpty()) {
+                        log.warn("cloneWeek: у кафедры {} нет преподавателей", departmentUuid);
+                        CloneResponse emptyResponse = new CloneResponse();
+                        return Mono.just(emptyResponse);
+                    }
+
+                    // Множество UUID преподавателей для фильтрации пар
+                    Set<UUID> allowedLecturers;
+                    if (lecturerUuids != null && !lecturerUuids.isEmpty()) {
+                        // Пользователь выбрал конкретных преподавателей — фильтруем по ним
+                        allowedLecturers = new HashSet<>(lecturerUuids);
+                        log.info("cloneWeek: выбрано преподавателей пользователем={}", allowedLecturers.size());
+                    } else {
+                        // Пользователь не выбирал — берём всех преподавателей кафедры
+                        allowedLecturers = deptLecturers.stream()
+                                .map(Lecturer::getUuid)
+                                .collect(Collectors.toSet());
+                        log.info("cloneWeek: используются все преподаватели кафедры, всего={}", allowedLecturers.size());
+                    }
+
+                    // Загружаем все пары за исходную неделю
+                    return pairRepository.findByDateBetweenOrderByDateAscPairOrderAsc(sourceMonday, sourceSunday)
+                            .doOnNext(p -> log.debug("cloneWeek: пара из БД date={} order={} subject={} lecturers={}",
+                                    p.getDate(), p.getPairOrder(), p.getSubjectUuid(), p.getLecturerUuids()))
+                            .filter(pair -> {
+                                // Фильтр по дню недели
+                                if (!allowedDays.contains(pair.getDate().getDayOfWeek())) {
+                                    log.debug("cloneWeek: пара пропущена — день недели {} не в списке разрешённых",
+                                            pair.getDate().getDayOfWeek());
+                                    return false;
+                                }
+                                // Фильтр по преподавателям: пара должна иметь хотя бы одного преподавателя из кафедры
+                                if (pair.getLecturerUuids() == null || pair.getLecturerUuids().isEmpty()) {
+                                    log.debug("cloneWeek: пара пропущена — нет преподавателей");
+                                    return false;
+                                }
+                                boolean hasAllowed = pair.getLecturerUuids().stream()
+                                        .anyMatch(allowedLecturers::contains);
+                                if (!hasAllowed) {
+                                    log.debug("cloneWeek: пара пропущена — преподаватели {} не относятся к выбранной кафедре",
+                                            pair.getLecturerUuids());
+                                    return false;
+                                }
+                                log.debug("cloneWeek: пара ПРОШЛА фильтр date={} order={}",
+                                        pair.getDate(), pair.getPairOrder());
+                                return true;
+                            })
+                            .collectList()
+                            .flatMap(sourcePairs -> {
+                                log.info("cloneWeek: после фильтрации осталось пар={}", sourcePairs.size());
+
+                                CloneResponse response = new CloneResponse();
+                                if (sourcePairs.isEmpty()) {
+                                    log.info("cloneWeek: нет пар для копирования, возвращаем пустой отчёт");
+                                    return Mono.just(response);
+                                }
+
+                                long daysBetween = java.time.temporal.ChronoUnit.DAYS.between(sourceMonday, targetMonday);
+                                log.info("cloneWeek: сдвиг между неделями={} дней, начинаем копирование {} пар",
+                                        daysBetween, sourcePairs.size());
+
+                                return Flux.fromIterable(sourcePairs)
+                                        .flatMap(sourcePair -> {
+                                            // Создаём копию пары для целевой недели
+                                            Pair newPair = new Pair();
+                                            newPair.setUuid(null);
+                                            newPair.setDate(sourcePair.getDate().plusDays(daysBetween));
+                                            newPair.setPairOrder(sourcePair.getPairOrder());
+                                            newPair.setSubjectUuid(sourcePair.getSubjectUuid());
+                                            newPair.setRoomUuid(sourcePair.getRoomUuid());
+                                            newPair.setType(sourcePair.getType());
+                                            newPair.setIsActive(false);
+                                            if (sourcePair.getLecturerUuids() != null) {
+                                                newPair.setLecturerUuids(new HashSet<>(sourcePair.getLecturerUuids()));
+                                            }
+                                            if (sourcePair.getGroupUuids() != null) {
+                                                newPair.setGroupUuids(new HashSet<>(sourcePair.getGroupUuids()));
+                                            }
+
+                                            log.debug("cloneWeek: копируем пару date={} order={} -> date={}",
+                                                    sourcePair.getDate(), sourcePair.getPairOrder(),
+                                                    newPair.getDate());
+
+                                            return savePair(newPair)
+                                                    .map(saved -> {
+                                                        log.debug("cloneWeek: пара УСПЕШНО создана date={} order={}",
+                                                                saved.getDate(), saved.getPairOrder());
+                                                        response.setSuccessCount(response.getSuccessCount() + 1);
+                                                        return saved;
+                                                    })
+                                                    .onErrorResume(e -> {
+                                                        String reason = e instanceof ResponseStatusException
+                                                                ? ((ResponseStatusException) e).getReason()
+                                                                : (e.getMessage() != null ? e.getMessage()
+                                                                        : "Неизвестная ошибка");
+                                                        log.warn("cloneWeek: ОШИБКА создания пары date={} order={}: {}",
+                                                                newPair.getDate(), newPair.getPairOrder(), reason);
+
+                                                        Set<UUID> lecUuids = sourcePair.getLecturerUuids();
+                                                        if (lecUuids != null && !lecUuids.isEmpty()) {
+                                                            return Flux.fromIterable(lecUuids)
+                                                                    .flatMap(lecUuid -> lecturerRepository
+                                                                            .findById(lecUuid)
+                                                                            .map(lecturer -> {
+                                                                                String name = lecturer.getLastName()
+                                                                                        + " "
+                                                                                        + lecturer.getFirstName();
+                                                                                if (lecturer.getPatronymic() != null
+                                                                                        && !lecturer.getPatronymic()
+                                                                                                .isEmpty()) {
+                                                                                    name += " "
+                                                                                            + lecturer.getPatronymic();
+                                                                                }
+                                                                                CloneResponse.CloneError error = new CloneResponse.CloneError(
+                                                                                        sourcePair.getDate()
+                                                                                                .getDayOfWeek(),
+                                                                                        sourcePair.getPairOrder(),
+                                                                                        name,
+                                                                                        reason);
+                                                                                response.getErrors().add(error);
+                                                                                return lecturer;
+                                                                            }))
+                                                                    .then(Mono.<PairDto>empty());
+                                                        } else {
+                                                            CloneResponse.CloneError error = new CloneResponse.CloneError(
+                                                                    sourcePair.getDate().getDayOfWeek(),
+                                                                    sourcePair.getPairOrder(),
+                                                                    "—",
+                                                                    reason);
+                                                            response.getErrors().add(error);
+                                                            return Mono.empty();
+                                                        }
+                                                    });
+                                        })
+                                        .then(Mono.fromCallable(() -> {
+                                            log.info("cloneWeek: ЗАВЕРШЕНО successCount={}, errors={}",
+                                                    response.getSuccessCount(), response.getErrors().size());
+                                            return response;
+                                        }));
+                            });
+                });
     }
 
     /// Удаление пары. Нельзя удалить пару с прошедшей датой.

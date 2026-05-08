@@ -19,24 +19,21 @@ export function fetchDepartments(query) {
   });
 }
 
-export function cloneWeek(startIso, targetIso, departmentUuid) {
-  if (!startIso || !targetIso || !departmentUuid) {
-    return Promise.reject(new Error('start, target and department are required'));
+export function cloneWeek(payload) {
+  // payload: { departmentUuid, sourceDate, targetDate, lecturerUuids, daysOfWeek }
+  if (!payload || !payload.departmentUuid || !payload.sourceDate || !payload.targetDate) {
+    return Promise.reject(new Error('departmentUuid, sourceDate and targetDate are required'));
   }
   const headers = buildCsrfHeaders();
   return new Promise((resolve, reject) => {
     $.ajax({
       url: '/api/pair/clone',
       type: 'POST',
+      contentType: 'application/json; charset=UTF-8',
       dataType: 'json',
       headers,
-      traditional: true,
-      data: {
-        start: startIso,
-        target: targetIso,
-        department: departmentUuid,
-      },
-      success: (list) => resolve(Array.isArray(list) ? list : []),
+      data: JSON.stringify(payload),
+      success: (response) => resolve(response),
       error: (xhr) => {
         console.error('Clone week error', xhr);
         reject(new Error((xhr && xhr.responseJSON && xhr.responseJSON.message) || 'Failed to clone week'));

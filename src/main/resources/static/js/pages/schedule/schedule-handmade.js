@@ -8,6 +8,7 @@ import {
 } from "./api.js"
 import {showToast, getWeekStart, getWeekEnd, formatDateDDMM, formatLectFio, formatEducationForm, dateToIso} from "./utils.js";
 import {startOfWeekMonday, endOfWeekSunday, dateIsoFor} from "./date.js";
+import { initImportSchedule } from "./import-schedule.js";
 
 // ==================== HTML TEMPLATE ====================
 const SCHEDULE_HTML = `<section class="container-fluid py-4" id="schedule-page">
@@ -143,6 +144,9 @@ const SCHEDULE_HTML = `<section class="container-fluid py-4" id="schedule-page">
         <div class="d-flex align-items-center gap-2">
           <button id="export-schedule" class="btn btn-success btn-sm" type="button">
             Экспортировать расписание
+          </button>
+          <button id="copy-week-next" class="btn btn-outline-info btn-sm" type="button">
+            <i class="bi bi-copy me-1"></i>Скопировать расписание на текущую неделю
           </button>
           <button id="approve-schedule-btn" class="btn btn-warning btn-sm" type="button">
             <i class="bi bi-check2-all me-1"></i>Утвердить расписание
@@ -284,20 +288,91 @@ const SCHEDULE_HTML = `<section class="container-fluid py-4" id="schedule-page">
 </section>
 
 <!-- Copy week from another week Modal -->
+<!-- Copy week Modal -->
 <div id="copy-week-modal" class="modal" tabindex="-1" style="display:none;">
-  <div class="modal-dialog">
+  <div class="modal-dialog modal-lg">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title">Копировать неделю</h5>
+        <h5 class="modal-title">Скопировать расписание на текущую неделю</h5>
         <button type="button" class="btn-close" id="copy-week-close" aria-label="Close"></button>
       </div>
       <div class="modal-body">
-        <p class="mb-2 small text-muted">Выберите неделю, из которой нужно скопировать расписание в текущую неделю. Отображаются только недели до текущей.</p>
-        <div id="copy-week-list" class="border rounded p-2" style="max-height: 260px; overflow-y: auto;"></div>
+        <!-- Выбор кафедры -->
+        <div class="mb-3">
+          <label class="form-label" for="copy-dept-search">Кафедра</label>
+          <div class="position-relative">
+            <input id="copy-dept-search" type="text" class="form-control"
+                   placeholder="Начните вводить название кафедры..." autocomplete="off" />
+            <div id="copy-dept-dropdown" class="dropdown-menu w-100 shadow"
+                 style="max-height: 260px; overflow-y: auto;"></div>
+          </div>
+          <input type="hidden" id="copy-department-uuid" value="" />
+        </div>
+        <!-- Выбор недели -->
+        <div class="mb-3">
+          <label class="form-label" for="copy-week-select">Исходная неделя</label>
+          <select class="form-select" id="copy-week-select"></select>
+          <div class="form-text">Недели с 1 сентября по текущую</div>
+        </div>
+        <div class="form-check mb-3">
+          <input class="form-check-input" type="checkbox" id="copy-other-week-cb" />
+          <label class="form-check-label" for="copy-other-week-cb">Другая неделя</label>
+        </div>
+        <div id="copy-other-week-wrap" class="mb-3" style="display:none;">
+          <label class="form-label" for="copy-source-date">Дата недели</label>
+          <input type="date" class="form-control" id="copy-source-date" />
+        </div>
+        <!-- Расширенные настройки -->
+        <button type="button" class="btn btn-outline-secondary btn-sm mb-3" id="copy-advanced-toggle">
+          <i class="bi bi-gear me-1"></i>Расширенные настройки
+        </button>
+        <div id="copy-advanced-settings" style="display:none;">
+          <!-- Преподаватели -->
+          <div class="mb-3">
+            <label class="form-label">Преподаватели</label>
+            <div class="form-check mb-1">
+              <input class="form-check-input" type="checkbox" id="copy-select-all-lecturers" checked />
+              <label class="form-check-label" for="copy-select-all-lecturers">Выбрать всех</label>
+            </div>
+            <div id="copy-lecturers-list" class="border rounded p-2" style="max-height: 200px; overflow-y: auto;"></div>
+          </div>
+          <!-- Дни недели -->
+          <div class="mb-3">
+            <label class="form-label">Дни недели</label>
+            <div class="form-check mb-1">
+              <input class="form-check-input" type="checkbox" id="copy-select-all-days" checked />
+              <label class="form-check-label" for="copy-select-all-days">Выбрать все</label>
+            </div>
+            <div id="copy-days-list" class="d-flex flex-wrap gap-2"></div>
+          </div>
+        </div>
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" id="copy-week-cancel">Отмена</button>
-        <button type="button" class="btn btn-primary" id="copy-week-confirm">Скопировать</button>
+        <button type="button" class="btn btn-primary" id="copy-week-confirm">Копировать</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Clone Report Modal -->
+<div id="clone-report-modal" class="modal" tabindex="-1" style="display:none;">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Отчёт копирования</h5>
+        <button type="button" class="btn-close" id="clone-report-close" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="alert alert-warning mb-3">
+          <i class="bi bi-exclamation-triangle-fill me-2"></i>
+          Не забудьте утвердить новые пары
+        </div>
+        <div id="clone-report-errors"></div>
+        <div id="clone-report-summary" class="fw-bold mt-3"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-primary" id="clone-report-ok">OK</button>
       </div>
     </div>
   </div>
@@ -463,6 +538,7 @@ let loadedGroups = [];
 
 let selectedDepartments = [];
 let weekStart = getWeekStart(null);
+window.weekStart = weekStart;
 
 let weekPairs = [];
 
@@ -603,6 +679,7 @@ async function init(container) {
         try {
             loadedDepartments = await fetchDepartments('');
             loadedDepartments.sort((a, b) => a.name.localeCompare(b.name, 'ru'));
+            window.loadedDepartments = loadedDepartments;
             console.log('Loaded departments:', loadedDepartments.length);
             try {
                 populateDepartmentDropdown('');
@@ -626,6 +703,7 @@ async function init(container) {
     // Загружаем всех преподавателей
     try {
         loadedLecturers = await fetchLecturers('');
+        window.loadedLecturers = loadedLecturers;
         console.log('Loaded lecturers:', loadedLecturers.length);
     } catch (e) {
         console.error('Failed to load lecturers', e);
@@ -670,6 +748,7 @@ async function init(container) {
         $('#week-prev').off('click').on('click', () => {
             weekStart = new Date(weekStart);
             weekStart.setDate(weekStart.getDate() - 7);
+            window.weekStart = weekStart;
 
             updateDisplay();
             renderTable();
@@ -680,6 +759,7 @@ async function init(container) {
 
             weekStart = new Date(weekStart);
             weekStart.setDate(weekStart.getDate() + 7);
+            window.weekStart = weekStart;
 
             updateDisplay();
             renderTable();
@@ -710,14 +790,14 @@ async function init(container) {
     //
     // Инициализируем экспорт расписания
     initExportSchedule();
-    //
-    // // Инициализируем импорт расписания
-    // initImportSchedule();
+    // Инициализируем импорт расписания
+    initImportSchedule();
 
     // Retry-кнопка для пар
     $('#pairs-retry-btn').off('click').on('click', renderTable);
 
     async function renderTable() {
+        window.renderTable = renderTable;
         if (selectedDepartments.length === 0) console.log(`selectedDepartments.length ${selectedDepartments.length}`)
         if (selectedDepartments.length === 0) return;
 
