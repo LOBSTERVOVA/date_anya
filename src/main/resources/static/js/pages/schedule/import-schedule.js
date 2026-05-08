@@ -20,6 +20,8 @@ export function initImportSchedule() {
             $('#copy-other-week-cb').prop('checked', false);
             $('#copy-other-week-wrap').hide();
             $('#copy-advanced-settings').hide();
+            $('#copy-week-confirm').prop('disabled', true);
+            $('#copy-advanced-toggle').prop('disabled', true);
             toggleCopyWeekModal(true);
         });
     }
@@ -197,6 +199,8 @@ function populateCopyDeptDropdown(search) {
                 $('#copy-department-uuid').val(dept.uuid);
                 $('#copy-dept-search').val(dept.name);
                 $dropdown.removeClass('show');
+                $('#copy-week-confirm').prop('disabled', false);
+                $('#copy-advanced-toggle').prop('disabled', false);
                 populateCopyLecturersList();
             });
             $dropdown.append($item);
