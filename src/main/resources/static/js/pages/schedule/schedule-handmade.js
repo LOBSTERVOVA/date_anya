@@ -529,6 +529,15 @@ const SCHEDULE_HTML = `<section class="container-fluid py-4" id="schedule-page">
     </div>
   </div>
 </div>
+
+<!-- Контекстное меню для ячеек расписания -->
+<div id="custom-context-menu" class="bg-white border rounded shadow py-1"
+     style="display:none; position:fixed; z-index:3000; min-width:160px; font-size:0.85rem;">
+  <button type="button" class="dropdown-item py-2 px-3" disabled>Копировать</button>
+  <button type="button" class="dropdown-item py-2 px-3" disabled>Вставить</button>
+  <hr class="dropdown-divider my-1">
+  <button type="button" class="dropdown-item py-2 px-3" onclick="document.getElementById('custom-context-menu').style.display='none'">Отмена</button>
+</div>
 `;
 
 let loadedDepartments = [];
@@ -1464,6 +1473,27 @@ async function init(container) {
             await renderTable();
         } catch (e) {
             showToast('Ошибка утверждения: ' + (e.responseJSON?.message || e.statusText), 'danger');
+        }
+    });
+
+    // Контекстное меню по правому клику на ячейках таблицы
+    document.addEventListener('contextmenu', function (e) {
+        const td = e.target.closest('#schedule-grid-table td');
+        if (!td) return;
+        e.preventDefault();
+        const menu = document.getElementById('custom-context-menu');
+        if (menu) {
+            menu.style.left = e.clientX + 'px';
+            menu.style.top = e.clientY + 'px';
+            menu.style.display = 'block';
+        }
+    });
+
+    // Скрываем контекстное меню при клике вне
+    document.addEventListener('click', function (e) {
+        const menu = document.getElementById('custom-context-menu');
+        if (menu && !menu.contains(e.target)) {
+            menu.style.display = 'none';
         }
     });
 
