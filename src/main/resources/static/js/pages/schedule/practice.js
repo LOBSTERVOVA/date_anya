@@ -208,14 +208,27 @@ function sortGroups(groups) {
         const fa = FORM_ORDER[a.educationForm] ?? 3;
         const fb = FORM_ORDER[b.educationForm] ?? 3;
         if (fa !== fb) return fa - fb;
+        if ((a.faculty || "") !== (b.faculty || "")) return (a.faculty || "").localeCompare(b.faculty || "");
         return a.groupName.localeCompare(b.groupName);
     });
 }
 
 function getFilteredGroups() {
     const q = (document.getElementById('practice-groups-search')?.value || '').toLowerCase();
-    const pool = q ? allGroups.filter(g => g.groupName.toLowerCase().includes(q)) : allGroups;
+    const pool = q ? allGroups.filter(g => {
+        const haystack = [g.groupName, g.specialization, g.direction, g.faculty, (g.kindsOfSports || []).join(", ")].filter(Boolean).join(" ").toLowerCase();
+        return haystack.includes(q);
+    }) : allGroups;
     return sortGroups(pool);
+}
+
+function formatGroupInfo(g) {
+    const parts = [g.groupName];
+    if (g.specialization) parts.push(g.specialization);
+    if (g.direction) parts.push(g.direction);
+    if (g.kindsOfSports && g.kindsOfSports.length > 0) parts.push(g.kindsOfSports.join(", "));
+    if (g.faculty) parts.push(g.faculty);
+    return parts.join(" — ") + ".";
 }
 
 function renderGroupList() {
@@ -226,26 +239,36 @@ function renderGroupList() {
     let html = '';
     let lastCourse = null;
     let lastForm = null;
+    let lastFaculty = null;
 
     for (const g of filtered) {
         if (g.course !== lastCourse) {
             html += `<div class="practice-group-course-header">${g.course} курс</div>`;
             lastCourse = g.course;
             lastForm = null;
+            lastFaculty = null;
         }
         if (g.educationForm !== lastForm) {
             html += `<div class="practice-group-form-header">${FORM_LABELS[g.educationForm] || g.educationForm}</div>`;
             lastForm = g.educationForm;
+            lastFaculty = null;
+        }
+        const fac = g.faculty || '';
+        if (fac !== (lastFaculty || '')) {
+            html += `<div class="text-muted small fw-semibold mt-1 ms-3">${fac || 'Без факультета'}</div>`;
+            lastFaculty = fac;
         }
 
         const checked = selectedGroups.some(sg => sg.uuid === g.uuid);
+        const info = formatGroupInfo(g);
+        const extra = info.substring(g.groupName.length + 3); // убираем "groupName — "
         html += `
-          <div class="form-check ms-3">
+          <div class="form-check ms-4">
             <input class="form-check-input practice-group-check" type="checkbox"
                    value="${g.uuid}" id="pg-${g.uuid}" ${checked ? 'checked' : ''} />
             <label class="form-check-label" for="pg-${g.uuid}">
               <span class="fw-medium">${g.groupName}</span>
-              <span class="text-muted ms-2 small">${g.faculty || ''}</span>
+              <span class="text-muted ms-1 small">${extra}</span>
             </label>
           </div>`;
     }

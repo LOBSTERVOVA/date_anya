@@ -259,11 +259,34 @@ public class PairService {
                                             }
 
                                             return practiceCheckMono.flatMap(pp -> {
-                                                // Проверка: аудитория не занята
-                                                if (pp.getRoomUuid() != null) {
+                                                // Проверка: все группы одного курса
+                                                Set<UUID> grpUuids = pp.getGroupUuids();
+                                                Mono<Pair> courseCheckMono;
+                                                if (grpUuids != null && grpUuids.size() > 1) {
+                                                    courseCheckMono = Flux.fromIterable(grpUuids)
+                                                            .flatMap(groupRepository::findById)
+                                                            .collectList()
+                                                            .flatMap(groups -> {
+                                                                Set<Integer> courses = groups.stream()
+                                                                        .map(Group::getCourse)
+                                                                        .collect(Collectors.toSet());
+                                                                if (courses.size() > 1) {
+                                                                    return Mono.error(new ResponseStatusException(
+                                                                            HttpStatus.BAD_REQUEST,
+                                                                            "Нельзя назначить группы разных курсов на одну пару"));
+                                                                }
+                                                                return Mono.just(pp);
+                                                            });
+                                                } else {
+                                                    courseCheckMono = Mono.just(pp);
+                                                }
+
+                                                return courseCheckMono.flatMap(p2 -> {
+                                                    // Проверка: аудитория не занята
+                                                if (p2.getRoomUuid() != null) {
                                                     for (Pair existing : existingPairs) {
-                                                        if (pp.getRoomUuid().equals(existing.getRoomUuid())) {
-                                                            return roomRepository.findById(pp.getRoomUuid())
+                                                        if (p2.getRoomUuid().equals(existing.getRoomUuid())) {
+                                                            return roomRepository.findById(p2.getRoomUuid())
                                                                     .flatMap(room -> Mono.error(new ResponseStatusException(
                                                                             HttpStatus.CONFLICT,
                                                                             "Аудитория занята в это время: " + room.getTitle())));
@@ -274,9 +297,10 @@ public class PairService {
                                                 // Все проверки пройдены — сохраняем
                                                 // Новая пара: isActive = false;
                                                 // Редактирование: сбрасываем в false (пара становится неутверждённой)
-                                                pp.setIsActive(false);
-                                                return pairRepository.save(pp)
+                                                p2.setIsActive(false);
+                                                return pairRepository.save(p2)
                                                         .flatMap(this::convertPairToPairDto);
+                                                });
                                             });
                                         })
                         );

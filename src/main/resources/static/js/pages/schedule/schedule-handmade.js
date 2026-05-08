@@ -974,7 +974,7 @@ async function init(container) {
                                 ${pair.subject?.name}
                             </div>
                             <div class="col-12 ${pair.groups.length === 0 ? 'text-danger' : ''}" style="font-size:0.7rem">
-                                Групп: ${pair.groups.length}
+                                ${pair.groups.length > 0 ? pair.groups[0].course + 'к. ' + pair.groups.length + 'групп: ' : 'Групп: 0'}
                             </div>
                             <div class="col-12 text-muted" style="font-size:0.6rem">
                                 Преподавателей: ${pair.lecturers.length}
@@ -1337,7 +1337,16 @@ async function init(container) {
             let groupsByCourseAndForm = {};
             let hasVisible = false;
 
+            // Если уже выбрана хотя бы одна группа, фильтруем по её курсу
+            let filterCourse = null;
+            if (selectedGroupUuids.size > 0) {
+                const firstUuid = [...selectedGroupUuids][0];
+                const firstGroup = loadedGroups.find(g => g.uuid === firstUuid);
+                if (firstGroup) filterCourse = firstGroup.course;
+            }
+
             filteredLoadedGroups.forEach(loadedGroup => {
+                if (filterCourse != null && loadedGroup.course !== filterCourse) return;
                 const isBusy = busyUuids.has(loadedGroup.uuid);
                 if (isBusy && !showBusy) return; // скрываем занятые
                 hasVisible = true;
