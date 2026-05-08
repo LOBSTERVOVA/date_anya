@@ -336,8 +336,14 @@ const SCHEDULE_HTML = `<section class="container-fluid py-4" id="schedule-page">
         </div>
         <!-- Выбор кафедры (для преподавателей) -->
         <div id="export-department-wrap" class="mb-3" style="display:none;">
-          <label class="form-label" for="export-department">Кафедра</label>
-          <select class="form-select" id="export-department"></select>
+          <label class="form-label" for="export-department-search">Кафедра</label>
+          <div class="position-relative">
+            <input id="export-department-search" type="text" class="form-control"
+                   placeholder="Начните вводить название кафедры..." autocomplete="off" />
+            <div id="export-department-dropdown" class="dropdown-menu w-100 shadow"
+                 style="max-height: 260px; overflow-y: auto;"></div>
+          </div>
+          <input type="hidden" id="export-department" value="" />
         </div>
         <!-- Выбор групп (для студентов) -->
         <div id="export-groups-wrap">
@@ -486,6 +492,8 @@ async function init(container) {
         // Сбрасываем блокировку полей
         $('#pair-save').prop('disabled', false);
         $('#pair-form').find('input, select, textarea, button').prop('disabled', false);
+        // Очищаем поле поиска групп
+        $('#pair-groups-search').val('');
     })
                     .on('shown.bs.modal', () => { window.scrollTo(0, modalScrollY); });
 
@@ -795,7 +803,7 @@ async function init(container) {
 
                 // Колонка номера пары и времени
                 $row.append(`
-                    <td class="text-center p-1" style="min-width: 56px; max-width: 56px; min-height: 40px; max-height: 70px; font-size:0.7rem;">
+                    <td class="text-center p-1" style="min-width: 56px; max-width: 72px; min-height: 40px; max-height: 70px; font-size:0.7rem;">
                         <strong>${lessonIndex + 1} пара</strong><br>
                         <small class="text-muted" style="font-size:0.6rem">${time}</small>
                     </td>
@@ -842,6 +850,9 @@ async function init(container) {
                     `);
                 });
 
+                if (lessonIndex === lessons.length - 1) {
+                    $row.addClass('day-last-row');
+                }
                 $tbody.append($row);
             });
         });
@@ -1608,7 +1619,7 @@ function initExportSchedule() {
             if (groupsSearch) groupsSearch.style.display = 'none';
             if (deptWrap) deptWrap.style.display = '';
             if (hint) hint.textContent = 'Будет выгружено расписание для преподавателей выбранной кафедры.';
-            populateDepartmentDropdown();
+            populateDepartmentDropdown('');
         } else {
             if (groupsWrap) groupsWrap.style.display = '';
             if (groupsSearch) groupsSearch.style.display = '';
@@ -1617,15 +1628,52 @@ function initExportSchedule() {
         }
     }
 
-    function populateDepartmentDropdown() {
-        const sel = document.getElementById('export-department');
-        if (!sel) return;
-        sel.innerHTML = '<option value="">-- Выберите кафедру --</option>';
-        loadedDepartments.forEach(dept => {
-            const opt = document.createElement('option');
-            opt.value = dept.uuid;
-            opt.textContent = dept.name || dept.uuid;
-            sel.appendChild(opt);
+    function populateDepartmentDropdown(search) {
+        const $dropdown = $('#export-department-dropdown');
+        if (!$dropdown.length) return;
+        $dropdown.empty();
+
+        const q = (search || '').toLowerCase();
+        const filtered = loadedDepartments.filter(dept =>
+            !q || (dept.name || '').toLowerCase().includes(q)
+        );
+
+        if (filtered.length > 0) {
+            filtered.forEach(dept => {
+                const $item = $('<div class="dropdown-item py-2 px-3 text-wrap" data-dept-uuid="' + dept.uuid + '">' + dept.name + '</div>');
+                $item.on('click', function (e) {
+                    e.preventDefault();
+                    $('#export-department').val(dept.uuid);
+                    $('#export-department-search').val(dept.name);
+                    $dropdown.removeClass('show');
+                });
+                $dropdown.append($item);
+            });
+        } else {
+            $dropdown.append($('<div>', {
+                class: 'dropdown-item text-muted py-2 px-3',
+                text: 'Кафедры не найдены'
+            }));
+        }
+    }
+
+    // Поиск кафедры (для режима преподавателей)
+    const deptSearchInput = document.getElementById('export-department-search');
+    if (deptSearchInput) {
+        deptSearchInput.addEventListener('input', function () {
+            populateDepartmentDropdown(this.value);
+            $('#export-department-dropdown').addClass('show');
+        });
+        deptSearchInput.addEventListener('focus', function () {
+            populateDepartmentDropdown(this.value);
+            $('#export-department-dropdown').addClass('show');
+        });
+        // Скрываем дропдаун при клике вне
+        $(document).on('click', function (e) {
+            const $wrap = $('#export-department-wrap');
+            if ($wrap.length && !$wrap.is(e.target) && $wrap.has(e.target).length === 0) {
+                $('#export-department-dropdown').removeClass('show');
+            }
         });
     }
 
@@ -1644,8 +1692,16 @@ function initExportSchedule() {
     const exportCancel = document.getElementById('export-cancel');
     const exportConfirm = document.getElementById('export-confirm');
 
-    if (exportClose) exportClose.addEventListener('click', () => toggleExportModal(false));
-    if (exportCancel) exportCancel.addEventListener('click', () => toggleExportModal(false));
+    if (exportClose) exportClose.addEventListener('click', () => {
+        $('#export-department-search').val('');
+        $('#export-department').val('');
+        toggleExportModal(false);
+    });
+    if (exportCancel) exportCancel.addEventListener('click', () => {
+        $('#export-department-search').val('');
+        $('#export-department').val('');
+        toggleExportModal(false);
+    });
 
     if (exportConfirm) {
         exportConfirm.addEventListener('click', async () => {
@@ -1663,8 +1719,7 @@ function initExportSchedule() {
             let payload = { from: toWeekStart(fromIso), to: toWeekEnd(toIso) };
 
             if (mode === 'lecturers') {
-                const deptSel = document.getElementById('export-department');
-                const deptUuid = deptSel?.value;
+                const deptUuid = document.getElementById('export-department')?.value;
                 if (!deptUuid) {
                     showToast('Выберите кафедру для экспорта', 'warning', 'Ошибка');
                     return;

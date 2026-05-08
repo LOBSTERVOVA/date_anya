@@ -348,3 +348,9 @@
 #sticky-header-clone th {
   border-color: var(--pair-border);
 }
+
+/* Жирная горизонтальная линия между днями (последняя строка дня) */
+#schedule-page #schedule-grid-table tr.day-last-row td {
+  border-bottom-width: 1px;
+  border-bottom-color: #6c757d;
+}
