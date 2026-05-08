@@ -805,12 +805,14 @@ async function init(container) {
                 selectedDepartments.forEach(dept => {
                     const deptLecturers = loadedLecturers.filter(l => l.department.uuid === dept.uuid)
                     deptLecturers.forEach(l => {
+                        const lecturerFio = formatLectFio(l);
                         const $cell = $(`
                             <td class="lesson-cell p-1 position-relative"
                                 data-day="${dayIndex}"
                                 data-lesson="${lessonIndex}"
                                 data-dept="${l.uuid}"
                                 id="${day.date}-${lessonIndex+1}-${l.uuid}"
+                                title="${lecturerFio}"
                                 style="overflow-x: hidden; overflow-y: auto; cursor: pointer">
                                 <!-- кликните для редактирования -->
                             </td>
@@ -888,6 +890,8 @@ async function init(container) {
 
     // в кафедре модалки нет преподавателей по какой-то причине
     function setupPairModal(date, pairPosition, department, clickedLecturer, pair) {
+        // Динамический заголовок модалки
+        $('#pair-modal .modal-title').text('Заполнение пары (' + formatDateDDMM(date) + ', ' + pairPosition + ' пара)');
         let subjects = department.subjects;
         let selectedSubject = pair ? pair.subject : null;
         let selectedRoom = pair ? pair.room : null;
