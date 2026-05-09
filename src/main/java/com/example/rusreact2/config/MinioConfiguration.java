@@ -21,6 +21,7 @@ public class MinioConfiguration {
 
     @Bean
     public MinioClient minioClient(){
+        log.info("MinIO Config - URL: {}, Username: {}", url, username);
         return MinioClient.builder()
                 .endpoint(url)
                 .credentials(username, password)

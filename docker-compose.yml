@@ -60,10 +60,10 @@ services:
       db.username: postgres
       db.password: 20020805
 
-      MINIO_BUCKET: rus
-      MINIO_ENDPOINT: http://minio:9000
-      MINIO_ACCESS_KEY: admin
-      MINIO_SECRET_KEY: rus02!gtsolifk
+      minio.bucket: rus
+      minio.url: http://minio:9000
+      minio.username: rus_admin
+      minio.password: rus02gtsolifk
 
     volumes:
       - ./logs:/app/logs
