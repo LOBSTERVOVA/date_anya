@@ -12,6 +12,8 @@
 
 ### Бэкенд (`src/main/java/com/example/rusreact2/`)
 ```
+config/
+  MinioConfiguration.java   — создаёт бин MinioClient из minio.url/username/password
 controllers/rest/
   PairController.java       — CRUD пар + cloneWeek + approvePairs
   ExportController.java     — POST /api/export/schedule (Excel)
@@ -20,6 +22,7 @@ controllers/web/
 services/
   PairService.java          — главный сервис: savePair, deletePair, cloneWeek, approvePairs, getWeekPairsBatch, convertPairToPairDto
   ExportService.java        — генерация Excel через Apache POI
+  MinioService.java         — загрузка/удаление файлов в MinIO (uploadStream, uploadFile, deleteFile)
 data/models/
   Pair.java                 — date, pairOrder, subjectUuid, roomUuid, type, isActive, lecturerUuids (Set<UUID>), groupUuids (Set<UUID>)
   Lecturer.java             — lastName, firstName, patronymic, departmentUuid

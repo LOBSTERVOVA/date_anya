@@ -1,9 +1,6 @@
 import { showToast } from './utils.js';
 import { startOfWeekMonday, endOfWeekSunday, dateIsoFor } from './date.js';
 
-// Базовый URL
-const base = typeof window !== 'undefined' && window.mainUrl ? window.mainUrl : (typeof mainUrl !== 'undefined' ? mainUrl : '');
-
 /**
  * Форматирует дату в формате YYYY-MM-DD без UTC проблем
  * @param {Date} date - дата для форматирования

@@ -1,5 +1,6 @@
 package com.example.rusreact2.config;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.minio.MinioClient;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -26,5 +27,10 @@ public class MinioConfiguration {
                 .endpoint(url)
                 .credentials(username, password)
                 .build();
+    }
+
+    @Bean
+    public ObjectMapper objectMapper() {
+        return new ObjectMapper();
     }
 }

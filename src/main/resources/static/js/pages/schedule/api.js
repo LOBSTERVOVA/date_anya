@@ -1,8 +1,6 @@
 // API calls for schedule page (ES module)
 import { getCsrf } from './utils.js';
 
-const base = typeof window !== 'undefined' && window.mainUrl ? window.mainUrl : (typeof mainUrl !== 'undefined' ? mainUrl : '');
-
 // вернет список кафедр с преподавателями(минимальная сущность преподов) и предметами(минимальная сущность предметов)
 export function fetchDepartments(query) {
   return new Promise((resolve, reject) => {

@@ -110,7 +110,7 @@
     cont.innerHTML = ordered.map(l => {
       const avatar = (l.avatar || '').trim();
       const avatarEl = avatar
-        ? `<img src="${avatar}" alt="" class="rounded-circle object-fit-cover" style="width:44px;height:44px;">`
+        ? `<img src="${cdn}${avatar}" alt="" class="rounded-circle object-fit-cover" style="width:44px;height:44px;">`
         : `<div class="avatar-circle">${initials(l)}</div>`;
 
       return `
