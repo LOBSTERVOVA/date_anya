@@ -1,5 +1,38 @@
 version: '3.8'
 
+#services:
+#  postgres:
+#    image: postgres
+#    restart: always
+#    environment:
+#      POSTGRES_DB: rus
+#      POSTGRES_USER: postgres
+#      POSTGRES_PASSWORD: 20020805
+#      PGDATA: /data
+#    ports:
+#      - "127.0.0.1:5432:5432"
+#    volumes:
+#      - postgres_data:/data
+#
+#  app:
+#    restart: always
+#    build: .
+#    ports:
+#      - "8080:8080"
+#    depends_on:
+#      - postgres
+#    environment:
+#      db.url: postgres:5432/rus
+#      db.username: postgres
+#      db.password: 20020805
+#    volumes:
+#      - ./logs:/app/logs
+#
+#volumes:
+#  postgres_data:
+
+
+
 services:
   postgres:
     image: postgres
@@ -21,16 +54,38 @@ services:
       - "8080:8080"
     depends_on:
       - postgres
+      - minio  # Добавляем зависимость от MinIO
     environment:
       db.url: postgres:5432/rus
       db.username: postgres
       db.password: 20020805
+
+      MINIO_BUCKET: rus
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ACCESS_KEY: admin
+      MINIO_SECRET_KEY: rus02!gtsolifk
+
     volumes:
       - ./logs:/app/logs
 
+  minio:
+    image: minio/minio:latest
+    restart: always
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: rus_admin        # Логин (по умолчанию admin)
+      MINIO_ROOT_PASSWORD: rus02gtsolifk  # Пароль (обязательно измените!)
+    ports:
+      - "9000:9000"   # API порт для S3
+      - "9001:9001"   # Веб-консоль
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
 volumes:
   postgres_data:
-
-#networks:
-#  app-network:
-#    driver: bridge
+  minio_data:

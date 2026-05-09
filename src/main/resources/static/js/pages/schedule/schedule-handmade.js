@@ -102,10 +102,7 @@ const SCHEDULE_HTML = `<section class="container-fluid py-4" id="schedule-page">
           <button id="add-department-btn" class="btn btn-outline-primary btn-sm" type="button" data-bs-toggle="modal" data-bs-target="#additional-department-modal">
             <i class="bi bi-plus-circle me-1"></i>Добавить кафедру
           </button>
-          <button id="add-group-btn" class="btn btn-outline-secondary btn-sm" type="button" data-bs-toggle="modal" data-bs-target="#create-group-modal">
-            <i class="bi bi-plus-circle me-1"></i>Добавить группу
-          </button>
-          </div>
+                    </div>
 <!--          модалка для выбора кафедр-->
           <div id="additional-department-modal" class="modal" >
             <div class="modal-dialog modal-lg" style="">
@@ -466,69 +463,6 @@ const SCHEDULE_HTML = `<section class="container-fluid py-4" id="schedule-page">
   </div>
 </div>
 
-<!-- Модальное окно создания группы -->
-<div id="create-group-modal" class="modal" tabindex="-1">
-  <div class="modal-dialog">
-    <div class="modal-content bg-white rounded shadow">
-      <div class="modal-header p-3 border-bottom">
-        <h5 class="modal-title mb-0">Добавить группу</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body p-3">
-        <form id="create-group-form">
-          <div class="mb-3">
-            <label for="group-name-input" class="form-label">Название группы <span class="text-danger">*</span></label>
-            <input id="group-name-input" type="text" class="form-control" placeholder="например, с1-01-20" required>
-          </div>
-          <div class="mb-3">
-            <label for="group-course-input" class="form-label">Курс <span class="text-danger">*</span></label>
-            <select id="group-course-input" class="form-select" required>
-              <option value="">—</option>
-              <option value="1">1</option>
-              <option value="2">2</option>
-              <option value="3">3</option>
-              <option value="4">4</option>
-              <option value="5">5</option>
-              <option value="6">6</option>
-            </select>
-          </div>
-          <div class="mb-3">
-            <label for="group-eduform-input" class="form-label">Форма обучения <span class="text-danger">*</span></label>
-            <select id="group-eduform-input" class="form-select" required>
-              <option value="">—</option>
-              <option value="FULL_TIME">Очная</option>
-              <option value="PART_TIME">Заочная</option>
-              <option value="MIXED">Очно-заочная</option>
-            </select>
-          </div>
-          <div class="mb-3">
-            <label for="group-direction-input" class="form-label">Направление <span class="text-danger">*</span></label>
-            <input id="group-direction-input" type="text" class="form-control" required>
-          </div>
-          <div class="mb-3">
-            <label for="group-faculty-input" class="form-label">Факультет <span class="text-danger">*</span></label>
-            <div class="position-relative">
-              <input id="group-faculty-input" type="text" class="form-control" list="faculty-datalist" placeholder="Выберите или введите свой" required>
-              <datalist id="faculty-datalist"></datalist>
-            </div>
-          </div>
-          <div class="mb-3">
-            <label for="group-specialization-input" class="form-label">Специализация</label>
-            <input id="group-specialization-input" type="text" class="form-control">
-          </div>
-          <div class="mb-3">
-            <label for="group-sports-input" class="form-label">Виды спорта (через запятую)</label>
-            <input id="group-sports-input" type="text" class="form-control" placeholder="каратэдо, ушу">
-          </div>
-        </form>
-      </div>
-      <div class="modal-footer p-3 border-top">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
-        <button type="button" id="create-group-confirm-btn" class="btn btn-primary">Создать</button>
-      </div>
-    </div>
-  </div>
-</div>
 
 <!-- Контекстное меню для ячеек расписания -->
 <div id="custom-context-menu" class="bg-white border rounded shadow py-1"
@@ -1835,7 +1769,7 @@ function initExportSchedule() {
             }
 
             const mode = document.querySelector('input[name="export-mode"]:checked')?.value || 'students';
-            let payload = { from: toWeekStart(fromIso), to: toWeekEnd(toIso) };
+            let payload = {from: toWeekStart(fromIso), to: toWeekEnd(toIso)};
 
             if (mode === 'lecturers') {
                 const deptUuid = document.getElementById('export-department')?.value;
@@ -1854,7 +1788,7 @@ function initExportSchedule() {
             }
 
             try {
-                const { blob, filename } = await exportScheduleExcel(payload);
+                const {blob, filename} = await exportScheduleExcel(payload);
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
@@ -1890,68 +1824,7 @@ function initExportSchedule() {
         }
     }
 
-    async function createGroup() {
-        const groupName = $('#group-name-input').val().trim();
-        const course = parseInt($('#group-course-input').val(), 10);
-        const educationForm = $('#group-eduform-input').val();
-        const direction = $('#group-direction-input').val().trim();
-        const faculty = $('#group-faculty-input').val().trim();
-        const specialization = $('#group-specialization-input').val().trim();
-        const sportsRaw = $('#group-sports-input').val().trim();
 
-        if (!groupName || !course || !educationForm || !direction || !faculty) {
-            showToast('Заполните все обязательные поля', 'warning', 'Ошибка');
-            return;
-        }
 
-        const kindsOfSports = sportsRaw
-            ? sportsRaw.split(',').map(s => s.trim()).filter(s => s.length > 0)
-            : [];
 
-        const body = {
-            groupName,
-            course,
-            educationForm,
-            direction,
-            faculty,
-            specialization: specialization || null,
-            kindsOfSports: kindsOfSports.length > 0 ? kindsOfSports : null
-        };
-
-        try {
-            const response = await fetch('/api/group', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(body)
-            });
-            if (!response.ok) {
-                const text = await response.text();
-                throw new Error(text || 'Ошибка создания группы');
-            }
-            const created = await response.json();
-            showToast(`Группа «${created.groupName}» создана`, 'success', 'Успех');
-
-            // Очищаем форму и закрываем модалку
-            document.getElementById('create-group-form').reset();
-            const modal = bootstrap.Modal.getInstance(document.getElementById('create-group-modal'));
-            modal.hide();
-
-            // Перезагружаем группы
-            loadedGroups = await fetchGroups('');
-            window.allGroups = loadedGroups;
-        } catch (e) {
-            console.error('Failed to create group', e);
-            showToast(e.message || 'Не удалось создать группу', 'danger', 'Ошибка');
-        }
-    }
-
-    // Привязываем события
-    document.addEventListener('DOMContentLoaded', () => {
-        const groupModal = document.getElementById('create-group-modal');
-        if (groupModal) {
-            groupModal.addEventListener('show.bs.modal', loadFaculties);
-        }
-    });
-
-    $('#create-group-confirm-btn').on('click', createGroup);
 }

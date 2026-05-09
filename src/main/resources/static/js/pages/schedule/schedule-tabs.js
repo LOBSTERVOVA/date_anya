@@ -17,6 +17,18 @@ const TABS_HTML = `
           <i class="bi bi-briefcase me-2"></i>Практика
         </button>
       </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="tab-btn-groups" data-bs-toggle="tab"
+                data-bs-target="#tab-groups" type="button" role="tab" aria-selected="false">
+          <i class="bi bi-people-fill me-2"></i>Группы
+        </button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="tab-btn-rooms-page" data-bs-toggle="tab"
+                data-bs-target="#tab-rooms-page" type="button" role="tab" aria-selected="false">
+          <i class="bi bi-door-open-fill me-2"></i>Аудитории
+        </button>
+      </li>
       <li class="nav-item ms-auto" role="presentation">
         <button class="btn btn-outline-secondary rounded-circle" id="help-btn"
                 style="width:38px;height:38px;padding:0;font-weight:700;font-size:1.1rem;"
@@ -67,6 +79,20 @@ const TABS_HTML = `
       <div class="text-center text-muted py-5">
         <div class="spinner-border text-primary mb-3" role="status"></div>
         <p>Загрузка практики…</p>
+      </div>
+    </div>
+
+    <div class="tab-pane fade" id="tab-groups" role="tabpanel" tabindex="0">
+      <div class="text-center text-muted py-5">
+        <div class="spinner-border text-primary mb-3" role="status"></div>
+        <p>Загрузка групп…</p>
+      </div>
+    </div>
+
+    <div class="tab-pane fade" id="tab-rooms-page" role="tabpanel" tabindex="0">
+      <div class="text-center text-muted py-5">
+        <div class="spinner-border text-primary mb-3" role="status"></div>
+        <p>Загрузка аудиторий…</p>
       </div>
     </div>
   </div>
@@ -338,6 +364,50 @@ async function initTabs() {
             const tabPractice = document.getElementById('tab-practice');
             tabPractice.innerHTML = `<div class="alert alert-danger m-4 d-flex align-items-center gap-3">
                 <span>Ошибка загрузки раздела «Практика»</span>
+                <button class="btn btn-outline-danger btn-sm" onclick="location.reload()">
+                    <i class="bi bi-arrow-clockwise me-1"></i>Обновить
+                </button>
+            </div>`;
+        }
+    });
+
+    // Группы — ленивая загрузка
+    let groupsLoaded = false;
+    const tabBtnGroups = document.getElementById('tab-btn-groups');
+    tabBtnGroups.addEventListener('shown.bs.tab', async () => {
+        if (groupsLoaded) return;
+        groupsLoaded = true;
+        try {
+            const groupsModule = await import('./groups.js');
+            const tabGroups = document.getElementById('tab-groups');
+            await groupsModule.init(tabGroups);
+        } catch (err) {
+            console.error('Failed to load groups module:', err);
+            const tabGroups = document.getElementById('tab-groups');
+            tabGroups.innerHTML = `<div class="alert alert-danger m-4 d-flex align-items-center gap-3">
+                <span>Ошибка загрузки раздела «Группы»</span>
+                <button class="btn btn-outline-danger btn-sm" onclick="location.reload()">
+                    <i class="bi bi-arrow-clockwise me-1"></i>Обновить
+                </button>
+            </div>`;
+        }
+    });
+
+    // Аудитории — ленивая загрузка
+    let roomsPageLoaded = false;
+    const tabBtnRoomsPage = document.getElementById('tab-btn-rooms-page');
+    tabBtnRoomsPage.addEventListener('shown.bs.tab', async () => {
+        if (roomsPageLoaded) return;
+        roomsPageLoaded = true;
+        try {
+            const roomsModule = await import('./rooms-tab.js');
+            const tabRoomsPage = document.getElementById('tab-rooms-page');
+            await roomsModule.init(tabRoomsPage);
+        } catch (err) {
+            console.error('Failed to load rooms module:', err);
+            const tabRoomsPage = document.getElementById('tab-rooms-page');
+            tabRoomsPage.innerHTML = `<div class="alert alert-danger m-4 d-flex align-items-center gap-3">
+                <span>Ошибка загрузки раздела «Аудитории»</span>
                 <button class="btn btn-outline-danger btn-sm" onclick="location.reload()">
                     <i class="bi bi-arrow-clockwise me-1"></i>Обновить
                 </button>

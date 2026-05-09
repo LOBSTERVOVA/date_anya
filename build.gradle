@@ -21,6 +21,8 @@ repositories {
 dependencies {
 
 
+    //minio
+    implementation 'io.minio:minio:8.5.2'
 
 
 

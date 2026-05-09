@@ -18,6 +18,11 @@ public class RoomService {
         return roomRepository.findAll();
     }
 
+    public Mono<Room> save(Room room) {
+        room.setUuid(UUID.randomUUID());
+        return roomRepository.save(room);
+    }
+
 //    public Mono<Room> findById(UUID id) {
 //        return roomRepository.findById(id);
 //    }
