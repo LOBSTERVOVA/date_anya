@@ -101,29 +101,9 @@ services:
       POSTGRES_PASSWORD: 20020805
       PGDATA: /data
     ports:
-      - "5432:5432"  # Убрал 127.0.0.1, чтобы был доступ из сети
+      - "5432:5432"
     volumes:
       - postgres_data:/data
-    networks:
-      - app_network
-
-  minio:
-    image: minio/minio:latest
-    restart: always
-    command: server /data --console-address ":9001"
-    environment:
-      MINIO_ROOT_USER: rus_admin
-      MINIO_ROOT_PASSWORD: rus02gtsolifk
-    ports:
-      - "9002:9000"   # API на 9002 (чтобы не конфликтовать с Portainer)
-      - "9003:9001"   # Консоль на 9003
-    volumes:
-      - minio_data:/data
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
-      interval: 30s
-      timeout: 20s
-      retries: 3
     networks:
       - app_network
 
@@ -133,24 +113,22 @@ services:
     ports:
       - "8080:8080"
     depends_on:
-      postgres:
-        condition: service_started
-      minio:
-        condition: service_healthy
+      - postgres
     environment:
-      # PostgreSQL
       db.url: postgres:5432/rus
       db.username: postgres
       db.password: 20020805
-      # MinIO
+      # MinIO - подключение к существующему контейнеру
       minio.bucket: rus
-      minio.url: http://minio:9000  # внутри Docker сети
+      minio.url: http://minio-server:9000  # Используем существующий контейнер
       minio.username: rus_admin
       minio.password: rus02gtsolifk
     volumes:
       - ./logs:/app/logs
     networks:
       - app_network
+
+# minio НЕ НУЖЕН - он уже запущен!
 
 networks:
   app_network:
@@ -159,4 +137,3 @@ networks:
 
 volumes:
   postgres_data:
-  minio_data:
