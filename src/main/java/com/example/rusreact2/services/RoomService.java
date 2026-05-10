@@ -7,8 +7,6 @@ import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-import java.util.UUID;
-
 @Service
 @RequiredArgsConstructor
 public class RoomService {
@@ -19,7 +17,7 @@ public class RoomService {
     }
 
     public Mono<Room> save(Room room) {
-        room.setUuid(UUID.randomUUID());
+        // UUID не устанавливаем вручную: при id=null R2DBC делает INSERT, БД генерирует UUID
         return roomRepository.save(room);
     }
 

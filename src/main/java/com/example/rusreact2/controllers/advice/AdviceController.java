@@ -20,6 +20,7 @@ public class AdviceController {
 
     @ModelAttribute(name = "cdn")
     public Mono<String> cdnUrl() {
+        log.info("CDN" + cdn);
         return Mono.just(cdn);
     }
 
