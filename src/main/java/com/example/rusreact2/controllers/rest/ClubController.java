@@ -30,14 +30,18 @@ public class ClubController {
     }
 
     /**
-     * Пагинированный список клубов/секций по типу.
-     * GET /api/club?type=SPORTS_CLUB&page=0&size=12
+     * Пагинированный список клубов/секций по типу с поиском и фильтрами.
+     * GET /api/club?type=SPORTS_CLUB&page=0&size=12&search=волейбол&dayOfWeek=3&timeFrom=10:00&timeTo=18:00
      */
     @GetMapping
     public Mono<ClubPageDto> listByType(@RequestParam String type,
                                          @RequestParam(defaultValue = "0") int page,
-                                         @RequestParam(defaultValue = "12") int size) {
-        return clubService.findAllByType(type, page, size);
+                                         @RequestParam(defaultValue = "12") int size,
+                                         @RequestParam(required = false) String search,
+                                         @RequestParam(required = false) Integer dayOfWeek,
+                                         @RequestParam(required = false) String timeFrom,
+                                         @RequestParam(required = false) String timeTo) {
+        return clubService.findAllByType(type, page, size, search, dayOfWeek, timeFrom, timeTo);
     }
 
     @GetMapping("/{uuid}")

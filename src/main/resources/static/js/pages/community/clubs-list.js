@@ -12,6 +12,13 @@
   let currentPage = 0;
   let totalPages = 0;
 
+  // Фильтры
+  let currentSearch = '';
+  let currentDayOfWeek = null; // 1-7 или null
+  let currentTimeFrom = '';    // HH:MM
+  let currentTimeTo = '';      // HH:MM
+  let searchDebounce = null;
+
   // Цвета и иконки по типу
   const TYPE_CONFIG = {
     SPORTS_CLUB: {
@@ -35,11 +42,16 @@
   // ====================== API ======================
 
   function fetchClubs(type, page) {
+    const params = { type, page, size: PAGE_SIZE };
+    if (currentSearch) params.search = currentSearch;
+    if (currentDayOfWeek) params.dayOfWeek = currentDayOfWeek;
+    if (currentTimeFrom) params.timeFrom = currentTimeFrom;
+    if (currentTimeTo) params.timeTo = currentTimeTo;
     return $.ajax({
       url: '/api/club',
       type: 'GET',
       dataType: 'json',
-      data: { type, page, size: PAGE_SIZE },
+      data: params,
     });
   }
 
@@ -321,6 +333,22 @@
           </p>
         </div>
 
+        <!-- Поиск и фильтры -->
+        <div class="row justify-content-center mb-4">
+          <div class="col-12 col-md-8 col-lg-6">
+            <div class="input-group">
+              <span class="input-group-text bg-white border-end-0 rounded-start-3">
+                <i class="bi bi-search text-secondary"></i>
+              </span>
+              <input type="text" id="clubs-search" class="form-control border-start-0 rounded-end-3" placeholder="Поиск по названию или описанию…" autocomplete="off">
+              <button class="btn btn-outline-secondary ms-2 rounded-3" id="clubs-filter-btn" type="button" title="Фильтр по расписанию">
+                <i class="bi bi-funnel"></i>
+                <span id="clubs-filter-dot" class="d-none position-absolute top-0 start-100 translate-middle p-1 bg-danger rounded-circle" style="width:8px;height:8px"></span>
+              </button>
+            </div>
+          </div>
+        </div>
+
         <!-- Сетка карточек -->
         <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-3" id="clubs-grid">
           <!-- Заполняется JS -->
@@ -328,6 +356,46 @@
 
         <!-- Пагинация -->
         <div id="clubs-pagination"></div>
+      </div>
+
+      <!-- Модалка фильтра -->
+      <div class="club-filter-modal position-fixed top-0 start-0 w-100 h-100 d-none" id="clubs-filter-modal" style="z-index:1055; background:rgba(0,0,0,0.5)">
+        <div class="position-absolute top-50 start-50 translate-middle bg-white rounded-4 shadow-lg p-4" style="min-width:320px; max-width:400px; width:90%">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h6 class="fw-bold mb-0">Фильтр по расписанию</h6>
+            <button class="btn-close" id="clubs-filter-close"></button>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label small text-secondary fw-semibold">День недели</label>
+            <select class="form-select rounded-3" id="clubs-filter-day">
+              <option value="">Любой день</option>
+              <option value="1">Понедельник</option>
+              <option value="2">Вторник</option>
+              <option value="3">Среда</option>
+              <option value="4">Четверг</option>
+              <option value="5">Пятница</option>
+              <option value="6">Суббота</option>
+              <option value="7">Воскресенье</option>
+            </select>
+          </div>
+
+          <div class="row g-2 mb-3">
+            <div class="col-6">
+              <label class="form-label small text-secondary fw-semibold">Не раньше</label>
+              <input type="time" class="form-control rounded-3" id="clubs-filter-time-from">
+            </div>
+            <div class="col-6">
+              <label class="form-label small text-secondary fw-semibold">Не позже</label>
+              <input type="time" class="form-control rounded-3" id="clubs-filter-time-to">
+            </div>
+          </div>
+
+          <div class="d-flex gap-2">
+            <button class="btn btn-outline-secondary rounded-3 flex-grow-1" id="clubs-filter-reset">Сбросить</button>
+            <button class="btn text-white rounded-3 flex-grow-1" id="clubs-filter-apply" style="background:${cfg.accent}">Применить</button>
+          </div>
+        </div>
       </div>
 
       <style>
@@ -373,8 +441,78 @@
           background-color: ${cfg.accentLight};
           color: ${cfg.accent};
         }
+        #clubs-filter-btn { position: relative; }
       </style>
     `;
+
+    // === События поиска ===
+    const searchInput = document.getElementById('clubs-search');
+    if (searchInput) {
+      searchInput.addEventListener('input', function () {
+        clearTimeout(searchDebounce);
+        searchDebounce = setTimeout(() => {
+          currentSearch = this.value.trim();
+          loadPage(0);
+        }, 400);
+      });
+    }
+
+    // === События фильтра ===
+    const filterBtn = document.getElementById('clubs-filter-btn');
+    const filterModal = document.getElementById('clubs-filter-modal');
+    const filterClose = document.getElementById('clubs-filter-close');
+    const filterApply = document.getElementById('clubs-filter-apply');
+    const filterReset = document.getElementById('clubs-filter-reset');
+    const filterDay = document.getElementById('clubs-filter-day');
+    const filterTimeFrom = document.getElementById('clubs-filter-time-from');
+    const filterTimeTo = document.getElementById('clubs-filter-time-to');
+    const filterDot = document.getElementById('clubs-filter-dot');
+
+    function updateFilterDot() {
+      if (currentDayOfWeek || currentTimeFrom || currentTimeTo) {
+        filterDot.classList.remove('d-none');
+      } else {
+        filterDot.classList.add('d-none');
+      }
+    }
+
+    function openFilterModal() {
+      filterDay.value = currentDayOfWeek || '';
+      filterTimeFrom.value = currentTimeFrom || '';
+      filterTimeTo.value = currentTimeTo || '';
+      filterModal.classList.remove('d-none');
+    }
+
+    function closeFilterModal() {
+      filterModal.classList.add('d-none');
+    }
+
+    if (filterBtn) filterBtn.addEventListener('click', openFilterModal);
+    if (filterClose) filterClose.addEventListener('click', closeFilterModal);
+    if (filterModal) filterModal.addEventListener('click', function (e) {
+      if (e.target === filterModal) closeFilterModal();
+    });
+
+    if (filterApply) filterApply.addEventListener('click', function () {
+      currentDayOfWeek = filterDay.value ? parseInt(filterDay.value) : null;
+      currentTimeFrom = filterTimeFrom.value || '';
+      currentTimeTo = filterTimeTo.value || '';
+      updateFilterDot();
+      closeFilterModal();
+      loadPage(0);
+    });
+
+    if (filterReset) filterReset.addEventListener('click', function () {
+      currentDayOfWeek = null;
+      currentTimeFrom = '';
+      currentTimeTo = '';
+      filterDay.value = '';
+      filterTimeFrom.value = '';
+      filterTimeTo.value = '';
+      updateFilterDot();
+      closeFilterModal();
+      loadPage(0);
+    });
 
     // Загружаем первую страницу
     loadPage(0);

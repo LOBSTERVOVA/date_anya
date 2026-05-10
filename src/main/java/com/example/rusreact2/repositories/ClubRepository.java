@@ -12,9 +12,28 @@ import java.util.UUID;
 public interface ClubRepository extends ReactiveCrudRepository<Club, UUID> {
     Flux<Club> findByDepartmentUuid(UUID departmentUuid);
 
-    @Query("SELECT * FROM clubs WHERE type = :type ORDER BY name ASC LIMIT :limit OFFSET :offset")
-    Flux<Club> findByType(String type, int limit, long offset);
+    @Query("SELECT DISTINCT c.* FROM clubs c " +
+            "WHERE c.type = :type " +
+            "AND (:search IS NULL OR LOWER(c.name) LIKE '%' || LOWER(:search) || '%' OR LOWER(c.description) LIKE '%' || LOWER(:search) || '%') " +
+            "AND (:dayOfWeek IS NULL OR EXISTS (" +
+            "  SELECT 1 FROM club_schedules cs " +
+            "  WHERE cs.club_uuid = c.uuid AND cs.day_of_week = :dayOfWeek " +
+            "  AND (:timeFrom IS NULL OR cs.end_time >= :timeFrom::time) " +
+            "  AND (:timeTo IS NULL OR cs.start_time <= :timeTo::time) " +
+            ")) " +
+            "ORDER BY c.name ASC LIMIT :limit OFFSET :offset")
+    Flux<Club> findByTypeWithFilters(String type, String search, Integer dayOfWeek,
+                                      String timeFrom, String timeTo, int limit, long offset);
 
-    @Query("SELECT COUNT(*) FROM clubs WHERE type = :type")
-    Mono<Long> countByType(String type);
+    @Query("SELECT COUNT(DISTINCT c.uuid) FROM clubs c " +
+            "WHERE c.type = :type " +
+            "AND (:search IS NULL OR LOWER(c.name) LIKE '%' || LOWER(:search) || '%' OR LOWER(c.description) LIKE '%' || LOWER(:search) || '%') " +
+            "AND (:dayOfWeek IS NULL OR EXISTS (" +
+            "  SELECT 1 FROM club_schedules cs " +
+            "  WHERE cs.club_uuid = c.uuid AND cs.day_of_week = :dayOfWeek " +
+            "  AND (:timeFrom IS NULL OR cs.end_time >= :timeFrom::time) " +
+            "  AND (:timeTo IS NULL OR cs.start_time <= :timeTo::time) " +
+            "))")
+    Mono<Long> countByTypeWithFilters(String type, String search, Integer dayOfWeek,
+                                       String timeFrom, String timeTo);
 }

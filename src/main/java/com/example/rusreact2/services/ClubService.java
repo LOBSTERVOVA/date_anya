@@ -38,15 +38,21 @@ public class ClubService {
     }
 
     /**
-     * Пагинированный список клубов/секций по типу.
+     * Пагинированный список клубов/секций по типу с поиском и фильтрами.
      * @param type SPORTS_CLUB или SCIENCE_CLUB
      * @param page номер страницы (0-based)
      * @param size размер страницы
+     * @param search поиск по названию и описанию (null — без фильтра)
+     * @param dayOfWeek фильтр по дню недели 1-7 (null — без фильтра)
+     * @param timeFrom фильтр «занятие не раньше» HH:MM (null — без фильтра)
+     * @param timeTo фильтр «занятие не позже» HH:MM (null — без фильтра)
      */
-    public Mono<ClubPageDto> findAllByType(String type, int page, int size) {
+    public Mono<ClubPageDto> findAllByType(String type, int page, int size,
+                                            String search, Integer dayOfWeek,
+                                            String timeFrom, String timeTo) {
         long offset = (long) page * size;
-        Mono<Long> totalMono = clubRepository.countByType(type);
-        Flux<ClubDto> contentFlux = clubRepository.findByType(type, size, offset)
+        Mono<Long> totalMono = clubRepository.countByTypeWithFilters(type, search, dayOfWeek, timeFrom, timeTo);
+        Flux<ClubDto> contentFlux = clubRepository.findByTypeWithFilters(type, search, dayOfWeek, timeFrom, timeTo, size, offset)
                 .flatMap(this::enrichWithSchedules)
                 .flatMap(this::toDto);
 
