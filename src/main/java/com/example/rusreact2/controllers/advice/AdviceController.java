@@ -15,7 +15,7 @@ import reactor.core.publisher.Mono;
 @PropertySource("classpath:application.properties")
 public class AdviceController {
 
-    @Value("${minio.url}")
+    @Value("${app.cdn}")
     private String cdn;
 
     @ModelAttribute(name = "cdn")

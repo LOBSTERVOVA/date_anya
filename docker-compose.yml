@@ -123,6 +123,8 @@ services:
       minio.url: http://minio-server:9000  # Используем существующий контейнер
       minio.username: rus_admin
       minio.password: rus02gtsolifk
+      app.cdn: http://185.170.144.76:9002
+
     volumes:
       - ./logs:/app/logs
     networks:
