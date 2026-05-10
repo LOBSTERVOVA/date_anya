@@ -1,6 +1,10 @@
 # API rus-react-2 — документация для мобильного приложения
 
-> Базовый URL: `http://<host>/api` (или `/api/mobile` для специальных мобильных эндпоинтов)  
+> **Базовый URL мобильного API:** `http://<host>/api/mobile`  
+> **MINIO_URL (для фото/аватарок):** `http://185.170.144.76:9002`  
+>   — все поля `avatar`, `url` возвращаются относительно (например `/uploads/uuid.png`),  
+>   — полный URL = `MINIO_URL + avatar` (например `http://185.170.144.76:9002/uploads/uuid.png`)  
+>  
 > Все ответы: JSON (кроме экспорта — Excel `.xlsx`)  
 > Все даты: ISO `YYYY-MM-DD` (LocalDate), время: `HH:MM` (LocalTime)  
 > Все UUID: стандартный формат `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`
@@ -9,7 +13,7 @@
 
 ## 1. Пары (расписание)
 
-### `GET /api/mobile/pair/batch`
+### `GET /api/mobile/pair/batch?from=&to=`
 **Только активные (утверждённые) пары** за период.  
 | Параметр | Тип | Обязательный | Описание |
 |---|---|---|---|
@@ -17,52 +21,7 @@
 | `to` | LocalDate | нет | Конец диапазона. Если не указан = from + 6 дней |
 
 **Ответ:** `Flux<PairDto>`  
-
 **Логика:** возвращает пары с `isActive = true` за неделю. Основной эндпоинт для мобильного расписания.
-
----
-
-### `GET /api/pair/week/batch`
-**Все пары** (включая неутверждённые) за период.  
-Параметры — те же. Используется веб-клиентом, мобилке не нужен.
-
----
-
-### `POST /api/pair`
-Создать или редактировать пару.  
-| Поле тела | Тип | Описание |
-|---|---|---|
-| `uuid` | UUID | `null` → создание, не-null → редактирование |
-| `date` | LocalDate | Дата пары |
-| `pairOrder` | int | Номер пары (1–8) |
-| `type` | LessonType | Тип занятия |
-| `subjectUuid` | UUID | UUID предмета |
-| `roomUuid` | UUID | UUID аудитории (опционально) |
-| `lecturerUuids` | Set\<UUID\> | Минимум 1 преподаватель |
-| `groupUuids` | Set\<UUID\> | Группы (все одного курса) |
-| `isActive` | boolean | Утверждена (обычно false при создании) |
-
-**Ответ:** `Mono<PairDto>`  
-**Логика:** полная проверка конфликтов (преподаватели, группы, аудитория, практики, курс групп).
-
----
-
-### `DELETE /api/pair/{uuid}`
-Удалить пару. Нельзя удалить прошедшую.  
-**Ответ:** `204 No Content`
-
----
-
-### `POST /api/pair/approve`
-Утвердить пары (isActive = true).  
-**Тело:** `{ "departmentUuids": ["uuid1", "uuid2"] }`  
-**Ответ:** `Mono<Integer>` — количество утверждённых пар
-
----
-
-### `POST /api/pair/clone`
-Клонировать неделю.  
-**Тело:** CloneRequest
 
 ---
 
@@ -74,19 +33,7 @@
 
 ---
 
-### `GET /api/lecturer?q=`
-Поиск преподавателей. `q` — поисковый запрос (опционально).  
-**Ответ:** `Flux<LecturerDto>`
-
----
-
-### `GET /api/lecturer/eligible`
-Преподаватели, доступные для назначения пар (связаны с кафедрами, имеющими предметы).  
-**Ответ:** `Flux<LecturerDto>`
-
----
-
-### `GET /api/lecturer/workload`
+### `GET /api/mobile/lecturer/workload?departmentUuid=&from=&to=`
 Нагрузка преподавателей кафедры за период.  
 | Параметр | Тип | Обязательный |
 |---|---|---|
@@ -98,52 +45,16 @@
 
 ---
 
-### `POST /api/lecturer` / `PUT /api/lecturer/{uuid}` / `DELETE /api/lecturer/{uuid}`
-CRUD преподавателей. Тело — Lecturer (entity).
-
----
-
-### `POST /api/lecturer/{uuid}/make-head`
-Сделать заведующим кафедрой.  
-**Ответ:** `Mono<LecturerDto>`
-
----
-
 ## 3. Группы
 
 ### `GET /api/mobile/group/all`
-**Все группы.** Без параметров.  
-**Ответ:** `Flux<GroupDto>`
-
----
-
-### `GET /api/group?q=`
-Поиск групп. `q` — поисковый запрос (опционально).  
+**Все активные группы.** Без параметров.  
 **Ответ:** `Flux<GroupDto>`  
-**Фильтрация:** только активные группы (`isActive = true`).
+**Фильтрация:** только `isActive = true`.
 
 ---
 
-### `POST /api/group`
-Создать группу.  
-**Тело:** Group (entity) — поля `groupName`, `course` (1–6), `educationForm`, `direction`, `faculty` обязательны.  
-**Ответ:** `Mono<GroupDto>`
-
----
-
-### `DELETE /api/group/{uuid}`
-Мягкое удаление (`isActive = false`).  
-**Ответ:** `204 No Content`
-
----
-
-### `GET /api/group/faculties`
-Список уникальных названий факультетов (только активных групп).  
-**Ответ:** `Flux<String>`
-
----
-
-### `GET /api/group/workload`
+### `GET /api/mobile/group/workload?groupUuids=&from=&to=`
 Нагрузка групп за период.  
 | Параметр | Тип | Обязательный |
 |---|---|---|
@@ -157,60 +68,29 @@ CRUD преподавателей. Тело — Lecturer (entity).
 
 ## 4. Практики
 
-### `GET /api/practice`
+### `GET /api/mobile/practice?from=&to=&groupUuids=`
 Практики групп в диапазоне дат.  
 | Параметр | Тип | Обязательный |
 |---|---|---|
 | `from` | LocalDate | да |
 | `to` | LocalDate | да |
-| `groupUuids` | List\<UUID\> | нет |
+| `groupUuids` | List\<UUID\> | нет (можно несколько: `?groupUuids=a&groupUuids=b`) |
 
 **Ответ:** `Flux<PracticeDto>`
-
----
-
-### `POST /api/practice`
-Создать практику.  
-**Тело:** Practice (entity) — обязательны: `groupUuid`, `title`, `practiceType`, `startDate`, `endDate`.  
-**Валидация:** группа должна быть активна (`isActive = true`).  
-**Ответ:** `Mono<PracticeDto>`
-
----
-
-### `DELETE /api/practice/{uuid}`
-Удалить практику.  
-**Ответ:** `204 No Content`
 
 ---
 
 ## 5. Кафедры
 
 ### `GET /api/mobile/department?q=`
-Поиск кафедр (мобильная версия). `q` — опционально.  
+Поиск кафедр. `q` — поисковый запрос (опционально).  
 **Ответ:** `Flux<DepartmentDto>`
-
----
-
-### `GET /api/department?q=`
-Поиск кафедр.  
-**Ответ:** `Flux<DepartmentDto>`
-
----
-
-### `GET /api/department/{uuid}`
-Одна кафедра по UUID.  
-**Ответ:** `Mono<DepartmentDto>`
-
----
-
-### `POST /api/department` / `PUT /api/department/{uuid}`
-Создать / обновить кафедру. Тело — Department (entity).
 
 ---
 
 ## 6. Кружки и клубы
 
-### `GET /api/club?type=&page=&size=&search=&dayOfWeek=&timeFrom=&timeTo=`
+### `GET /api/mobile/club?type=&page=&size=&search=&departmentUuids=&dayOfWeek=&timeFrom=&timeTo=`
 Пагинированный список клубов с фильтрами.  
 | Параметр | Тип | Обязательный | Описание |
 |---|---|---|---|
@@ -218,61 +98,31 @@ CRUD преподавателей. Тело — Lecturer (entity).
 | `page` | int | нет (default 0) | Номер страницы |
 | `size` | int | нет (default 12) | Размер страницы |
 | `search` | String | нет | Поиск по названию/описанию |
+| `departmentUuids` | UUID[] | нет | Фильтр по кафедрам (можно несколько: `?departmentUuids=uuid1&departmentUuids=uuid2`) |
 | `dayOfWeek` | Integer | нет | 1=ПН … 7=ВС |
-| `timeFrom` | String | нет | «с» HH:MM |
-| `timeTo` | String | нет | «по» HH:MM |
+| `timeFrom` | String | нет | «не раньше» HH:MM |
+| `timeTo` | String | нет | «не позже» HH:MM |
 
+**Логика фильтрации:** возвращаются клубы, у которых есть занятие в указанный день недели, и время занятия пересекается с заданным диапазоном.  
 **Ответ:** `Mono<ClubPageDto>` (содержит `content`, `totalElements`, `totalPages`, `page`, `size`)
 
 ---
 
-### `GET /api/club/department/{departmentUuid}`
-Клубы конкретной кафедры.  
-**Ответ:** `Flux<ClubDto>`
-
----
-
-### `GET /api/club/{uuid}`
+### `GET /api/mobile/club/{uuid}`
 Один клуб по UUID.  
 **Ответ:** `Mono<ClubDto>`
 
 ---
 
-### `POST /api/club` / `PUT /api/club/{uuid}`
-Создать / обновить клуб.  
-**Тело:** ClubCreateRequest:
-```json
-{
-  "club": {
-    "name": "Название",
-    "type": "SPORTS_CLUB",
-    "avatar": "url",
-    "description": "Описание",
-    "roomUuids": ["uuid1"],
-    "departmentUuid": "uuid"
-  },
-  "schedules": [
-    {
-      "dayOfWeek": 3,
-      "startTime": "14:00",
-      "endTime": "16:00"
-    }
-  ]
-}
-```
-**Ответ:** `Mono<ClubDto>`
-
----
-
-### `DELETE /api/club/{uuid}`
-Удалить клуб.  
-**Ответ:** `204 No Content`
+### `GET /api/mobile/club/department/{departmentUuid}`
+Клубы конкретной кафедры.  
+**Ответ:** `Flux<ClubDto>`
 
 ---
 
 ## 7. Новости
 
-### `GET /api/news?page=&size=`
+### `GET /api/mobile/news?page=&size=`
 Пагинированный список новостей.  
 | Параметр | Тип | По умолчанию |
 |---|---|---|
@@ -290,21 +140,9 @@ CRUD преподавателей. Тело — Lecturer (entity).
 
 ---
 
-### `GET /api/news/{uuid}`
+### `GET /api/mobile/news/{uuid}`
 Одна новость по UUID.  
 **Ответ:** `Mono<NewsDto>`
-
----
-
-### `POST /api/news`
-Создать/редактировать новость. Тело — News (entity).  
-**Ответ:** `Mono<NewsDto>`
-
----
-
-### `DELETE /api/news/{uuid}`
-Удалить новость.  
-**Ответ:** `204 No Content`
 
 ---
 
@@ -313,43 +151,6 @@ CRUD преподавателей. Тело — Lecturer (entity).
 ### `GET /api/mobile/reference`
 Вся справочная информация.  
 **Ответ:** `Flux<ReferenceInfo>`
-
-### `GET /api/reference/themes`
-Список тем.  
-**Ответ:** `Mono<List<String>>`
-
-### `GET /api/reference?theme=`
-Справочная информация по теме.  
-**Ответ:** `Mono<List<ReferenceInfo>>`
-
----
-
-## 9. Экспорт
-
-### `POST /api/export/schedule`
-Экспорт расписания в Excel (`.xlsx`).  
-**Тело:** ExportRequest:
-```json
-{
-  "from": "2026-05-11",
-  "to": "2026-05-17",
-  "groups": ["uuid1", "uuid2"],
-  "departmentUuid": null
-}
-```
-- Если `departmentUuid` = null → режим «для студентов» (по группам)
-- Если `departmentUuid` задан → режим «для преподавателей» (по кафедре, каждый преподаватель на отдельном листе)
-
-**Ответ:** `binary .xlsx` (Content-Type: `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`)
-
----
-
-## 10. Загрузка файлов
-
-### `POST /api/upload`
-Загрузка файла в MinIO.  
-**Тело:** `multipart/form-data`, поле `file`  
-**Ответ:** `Mono<Map<String, String>>` — `{ "url": "/uploads/uuid.png" }`
 
 ---
 
@@ -386,7 +187,7 @@ CRUD преподавателей. Тело — Lecturer (entity).
 | Поле | Тип |
 |---|---|
 | `uuid` | UUID |
-| `avatar` | String (nullable) |
+| `avatar` | String (относительный путь — добавить MINIO_URL) |
 | `lastName` | String |
 | `firstName` | String |
 | `patronymic` | String (nullable) |
@@ -443,7 +244,7 @@ CRUD преподавателей. Тело — Lecturer (entity).
 | `uuid` | UUID |
 | `name` | String |
 | `type` | String (`SPORTS_CLUB` / `SCIENCE_CLUB`) |
-| `avatar` | String (URL) |
+| `avatar` | String (относительный путь — добавить MINIO_URL) |
 | `description` | String |
 | `roomUuids` | Set\<UUID\> |
 | `rooms` | Set\<RoomDto\> |
@@ -484,7 +285,7 @@ CRUD преподавателей. Тело — Lecturer (entity).
 |---|---|
 | `uuid` | UUID |
 | `lastName`, `firstName`, `patronymic` | String |
-| `avatar` | String |
+| `avatar` | String (относительный путь) |
 | `academicTitle` | AcademicTitle |
 | `totalPairs`, `totalHours` | int |
 | `totalLecturePairs`, `totalLectureHours` | int |
@@ -494,7 +295,7 @@ CRUD преподавателей. Тело — Lecturer (entity).
 | `totalExamPairs`, `totalExamHours` | int |
 | `subjects` | List\<SubjectStat\> |
 
-### SubjectStat (вложенный в LecturerWorkloadDto и GroupWorkloadDto)
+### SubjectStat (вложенный)
 | Поле | Тип |
 |---|---|
 | `subjectName` | String |
@@ -515,34 +316,9 @@ CRUD преподавателей. Тело — Lecturer (entity).
 | `faculty`, `direction`, `specialization` | String |
 | `kindsOfSports` | Set\<String\> |
 | `totalPairs`, `totalHours` | int |
-| `. . .` (все счётчики типов занятий, как у LecturerWorkloadDto) | |
+| ... (все счётчики типов занятий, как у LecturerWorkloadDto) | |
 | `subjects` | List\<SubjectStat\> |
 | `practices` | List\<PracticeDto\> |
-
-## CloneRequest
-| Поле | Тип |
-|---|---|
-| `departmentUuid` | UUID |
-| `sourceDate` | LocalDate |
-| `targetDate` | LocalDate |
-| `lecturerUuids` | List\<UUID\> |
-| `daysOfWeek` | List\<DayOfWeek\> |
-
-## CloneResponse
-| Поле | Тип |
-|---|---|
-| `successCount` | int |
-| `errors` | List\<CloneError\> |
-
-**CloneError:** `dayOfWeek`, `pairOrder`, `lecturerName`, `reason`
-
-## ExportRequest
-| Поле | Тип |
-|---|---|
-| `from` | LocalDate |
-| `to` | LocalDate |
-| `groups` | List\<UUID\> |
-| `departmentUuid` | UUID (nullable — null = для студентов, задан = для преподавателей) |
 
 ---
 
@@ -558,22 +334,22 @@ CRUD преподавателей. Тело — Lecturer (entity).
 
 ---
 
-# Ключевые эндпоинты для мобильного клиента (шпаргалка)
+# Полный список мобильных эндпоинтов (шпаргалка)
 
 | # | Метод | Путь | Назначение |
 |---|---|---|---|
 | 1 | GET | `/api/mobile/pair/batch?from=&to=` | Активные пары за неделю |
 | 2 | GET | `/api/mobile/group/all` | Все группы |
-| 3 | GET | `/api/mobile/lecturer/all` | Все преподаватели |
-| 4 | GET | `/api/mobile/department?q=` | Поиск кафедр |
-| 5 | GET | `/api/mobile/reference` | Справочная информация |
-| 6 | GET | `/api/group?q=` | Поиск групп |
-| 7 | GET | `/api/practice?from=&to=&groupUuids=` | Практики групп |
-| 8 | GET | `/api/news?page=&size=` | Новости (пагинация) |
-| 9 | GET | `/api/club?type=SPORTS_CLUB&page=&size=` | Клубы/секции |
-| 10 | GET | `/api/lecturer/workload?departmentUuid=&from=&to=` | Нагрузка преподавателей |
-| 11 | GET | `/api/group/workload?groupUuids=&from=&to=` | Нагрузка групп |
-| 12 | POST | `/api/export/schedule` | Экспорт в Excel |
-| 13 | GET | `/api/department/{uuid}` | Одна кафедра |
-| 14 | GET | `/api/club/{uuid}` | Один клуб |
-| 15 | GET | `/api/news/{uuid}` | Одна новость |
+| 3 | GET | `/api/mobile/group/workload?groupUuids=&from=&to=` | Нагрузка групп |
+| 4 | GET | `/api/mobile/lecturer/all` | Все преподаватели |
+| 5 | GET | `/api/mobile/lecturer/workload?departmentUuid=&from=&to=` | Нагрузка преподавателей |
+| 6 | GET | `/api/mobile/department?q=` | Поиск кафедр |
+| 7 | GET | `/api/mobile/practice?from=&to=&groupUuids=` | Практики групп |
+| 8 | GET | `/api/mobile/news?page=&size=` | Новости (пагинация) |
+| 9 | GET | `/api/mobile/news/{uuid}` | Одна новость |
+| 10 | GET | `/api/mobile/club?type=&page=&size=&search=&departmentUuids=&dayOfWeek=&timeFrom=&timeTo=` | Клубы с фильтрами |
+| 11 | GET | `/api/mobile/club/{uuid}` | Один клуб |
+| 12 | GET | `/api/mobile/club/department/{uuid}` | Клубы кафедры |
+| 13 | GET | `/api/mobile/reference` | Справочная информация |
+
+> **Важно:** для полей `avatar`, `url` — полный путь = `http://185.170.144.76:9002` + значение поля.

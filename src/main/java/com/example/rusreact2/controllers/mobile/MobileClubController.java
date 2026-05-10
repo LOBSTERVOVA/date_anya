@@ -1,39 +1,34 @@
-package com.example.rusreact2.controllers.rest;
+package com.example.rusreact2.controllers.mobile;
 
 import com.example.rusreact2.data.dto.ClubDto;
 import com.example.rusreact2.data.dto.ClubPageDto;
-import com.example.rusreact2.data.models.Club;
-import com.example.rusreact2.data.models.ClubSchedule;
 import com.example.rusreact2.services.ClubService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpStatus;
-import org.springframework.web.bind.annotation.*;
-import org.springframework.web.server.ResponseStatusException;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
 @Slf4j
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/api/club")
-public class ClubController {
-
+@RequestMapping("/api/mobile/club")
+public class MobileClubController {
     private final ClubService clubService;
 
     @GetMapping("/department/{departmentUuid}")
     public Flux<ClubDto> listByDepartment(@PathVariable UUID departmentUuid) {
+        log.info("GET /api/mobile/club/department/{}", departmentUuid);
         return clubService.findByDepartment(departmentUuid);
     }
 
-    /**
-     * Пагинированный список клубов/секций по типу с поиском и фильтрами.
-     * GET /api/club?type=SPORTS_CLUB&page=0&size=12&search=волейбол&departmentUuids=uuid1&departmentUuids=uuid2&dayOfWeek=3&timeFrom=10:00&timeTo=18:00
-     */
     @GetMapping
     public Mono<ClubPageDto> listByType(@RequestParam String type,
                                          @RequestParam(defaultValue = "0") int page,
@@ -43,28 +38,13 @@ public class ClubController {
                                          @RequestParam(required = false) Integer dayOfWeek,
                                          @RequestParam(required = false) String timeFrom,
                                          @RequestParam(required = false) String timeTo) {
+        log.info("GET /api/mobile/club?type={}&page={}&size={}", type, page, size);
         return clubService.findAllByType(type, page, size, search, departmentUuids, dayOfWeek, timeFrom, timeTo);
     }
 
     @GetMapping("/{uuid}")
     public Mono<ClubDto> get(@PathVariable UUID uuid) {
+        log.info("GET /api/mobile/club/{}", uuid);
         return clubService.findById(uuid);
-    }
-
-    @PostMapping
-    public Mono<ClubDto> create(@RequestBody ClubCreateRequest request) {
-        log.info("create club: name={}, type={}", request.getClub().getName(), request.getClub().getType());
-        return clubService.create(request.getClub(), request.getSchedules());
-    }
-
-    @PutMapping("/{uuid}")
-    public Mono<ClubDto> update(@PathVariable UUID uuid, @RequestBody ClubCreateRequest request) {
-        log.info("update club: uuid={}, name={}", uuid, request.getClub().getName());
-        return clubService.update(uuid, request.getClub(), request.getSchedules());
-    }
-
-    @DeleteMapping("/{uuid}")
-    public Mono<Void> delete(@PathVariable UUID uuid) {
-        return clubService.delete(uuid);
     }
 }
