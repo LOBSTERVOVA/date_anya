@@ -20,5 +20,6 @@ public class ClubDto {
     private Set<UUID> roomUuids;
     private Set<RoomDto> rooms;
     private UUID departmentUuid;
+    private String departmentName;
     private List<ClubScheduleDto> schedules;
 }

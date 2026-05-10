@@ -9,7 +9,7 @@ import reactor.core.publisher.Mono;
 import java.util.UUID;
 
 public interface GroupRepository extends R2dbcRepository<Group, UUID> {
-    @Query("SELECT * FROM groups g WHERE " +
+    @Query("SELECT * FROM groups g WHERE g.is_active = true AND " +
             "(:q IS NULL OR :q = '' OR " +
             "LOWER(g.direction) LIKE LOWER(CONCAT('%', :q, '%')) OR " +
             "LOWER(g.faculty) LIKE LOWER(CONCAT('%', :q, '%')) OR " +
@@ -20,6 +20,9 @@ public interface GroupRepository extends R2dbcRepository<Group, UUID> {
     @Query("SELECT * FROM groups g WHERE LOWER(g.group_name) = LOWER(:groupName) AND LOWER(g.specialization) = LOWER(:specialization) AND LOWER(g.direction) = LOWER(:direction)")
     Mono<Group> findByGroupNameAndSpecializationAndDirection(@Param("groupName") String groupName, @Param("specialization") String specialization, @Param("direction") String direction);
 
-    @Query("SELECT DISTINCT g.faculty FROM groups g WHERE g.faculty IS NOT NULL ORDER BY g.faculty ASC")
+    @Query("SELECT DISTINCT g.faculty FROM groups g WHERE g.faculty IS NOT NULL AND g.is_active = true ORDER BY g.faculty ASC")
     Flux<String> findDistinctFaculties();
+
+    @Query("SELECT * FROM groups g WHERE g.is_active = true ORDER BY g.group_name ASC")
+    Flux<Group> findAllActive();
 }

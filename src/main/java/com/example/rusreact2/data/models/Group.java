@@ -36,6 +36,9 @@ public class Group {
     private Set<String> kindsOfSports = new HashSet<>();
 
 
+    @Column(value = "is_active")
+    private boolean isActive = true;
+
     private Set<UUID> pairUuids = new HashSet<>();
 
     @Override

@@ -161,8 +161,33 @@ public class PairService {
                                     return Mono.just(lecturers);
                                 });
 
-                        return lecturersMono.flatMap(lecturers ->
-                                pairRepository.findByDateAndPairOrder(p.getDate(), p.getPairOrder())
+                        return lecturersMono.flatMap(lecturers -> {
+                            // Проверка: все группы активны
+                            Set<UUID> grpUuids = p.getGroupUuids() != null ? p.getGroupUuids() : new HashSet<>();
+                            Mono<Set<UUID>> groupCheckMono;
+                            if (!grpUuids.isEmpty()) {
+                                groupCheckMono = Flux.fromIterable(grpUuids)
+                                        .flatMap(groupRepository::findById)
+                                        .collectList()
+                                        .flatMap(groups -> {
+                                            java.util.List<String> inactiveNames = groups.stream()
+                                                    .filter(g -> !g.isActive())
+                                                    .map(Group::getGroupName)
+                                                    .toList();
+                                            if (!inactiveNames.isEmpty()) {
+                                                return Mono.error(new ResponseStatusException(
+                                                        HttpStatus.BAD_REQUEST,
+                                                        "Группы неактивны и не могут участвовать в расписании: "
+                                                                + String.join(", ", inactiveNames)));
+                                            }
+                                            return Mono.just(grpUuids);
+                                        });
+                            } else {
+                                groupCheckMono = Mono.just(grpUuids);
+                            }
+
+                            return groupCheckMono.flatMap(ignored ->
+                                    pairRepository.findByDateAndPairOrder(p.getDate(), p.getPairOrder())
                                         .collectList()
                                         .flatMap(allPairs -> {
                                             // При редактировании исключаем саму редактируемую пару из проверок конфликтов
@@ -260,10 +285,10 @@ public class PairService {
 
                                             return practiceCheckMono.flatMap(pp -> {
                                                 // Проверка: все группы одного курса
-                                                Set<UUID> grpUuids = pp.getGroupUuids();
+                                                Set<UUID> courseGrpUuids = pp.getGroupUuids();
                                                 Mono<Pair> courseCheckMono;
-                                                if (grpUuids != null && grpUuids.size() > 1) {
-                                                    courseCheckMono = Flux.fromIterable(grpUuids)
+                                                if (courseGrpUuids != null && courseGrpUuids.size() > 1) {
+                                                    courseCheckMono = Flux.fromIterable(courseGrpUuids)
                                                             .flatMap(groupRepository::findById)
                                                             .collectList()
                                                             .flatMap(groups -> {
@@ -306,6 +331,7 @@ public class PairService {
                         );
                     });
         });
+});
     }
 
     /// Клонирование недели: копирует пары с исходной недели на целевую.

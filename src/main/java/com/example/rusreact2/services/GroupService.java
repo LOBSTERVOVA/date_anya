@@ -38,7 +38,7 @@ public class GroupService {
     }
 
     public Flux<GroupDto> getAll() {
-        return groupRepository.findAll()
+        return groupRepository.findAllActive()
                 .map(group -> new GroupDto().minimumGroupDto(group));
     }
 
@@ -58,9 +58,21 @@ public class GroupService {
         if (group.getFaculty() == null || group.getFaculty().isBlank()) {
             return Mono.error(new ResponseStatusException(HttpStatus.BAD_REQUEST, "Факультет обязателен"));
         }
+        // Новая группа всегда активна
+        group.setActive(true);
         group.setPairUuids(null);
         return groupRepository.save(group)
                 .map(saved -> new GroupDto().minimumGroupDto(saved));
+    }
+
+    /// Мягкое удаление: isActive = false
+    public Mono<Void> softDelete(UUID uuid) {
+        return groupRepository.findById(uuid)
+                .switchIfEmpty(Mono.error(new ResponseStatusException(HttpStatus.NOT_FOUND, "Группа не найдена")))
+                .flatMap(group -> {
+                    group.setActive(false);
+                    return groupRepository.save(group).then();
+                });
     }
 
     public Flux<String> getFaculties() {
@@ -78,8 +90,8 @@ public class GroupService {
             return Flux.empty();
         }
 
-        Mono<Map<UUID, Group>> groupsMap = groupRepository.findAll()
-                .filter(g -> groupUuids.contains(g.getUuid()))
+        Mono<Map<UUID, Group>> groupsMap = groupRepository.findAllById(groupUuids)
+                .filter(Group::isActive)
                 .collect(Collectors.toMap(Group::getUuid, g -> g));
 
         Mono<Map<UUID, String>> subjectNames = subjectRepository.findAll()

@@ -160,7 +160,7 @@ async function openClubModal(uuid) {
 
                 // Аватарка
                 if (club.avatar) {
-                    document.getElementById('clubAvatarPreviewImg').src = CDN + club.avatar;
+                    document.getElementById('clubAvatarPreviewImg').src = cdn + club.avatar;
                     document.getElementById('clubAvatarPreview').style.display = '';
                     document.getElementById('clubAvatarDropZone').style.display = 'none';
                     document.getElementById('clubAvatarUrl').value = club.avatar;

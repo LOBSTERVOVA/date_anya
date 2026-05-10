@@ -201,6 +201,20 @@ export function fetchGroups(query) {
   });
 }
 
+export function deleteGroup(uuid) {
+  return new Promise((resolve, reject) => {
+    const headers = buildCsrfHeaders();
+    $.ajax({
+      url: '/api/group/' + uuid,
+      type: 'DELETE',
+      headers: headers,
+      success: () => resolve(),
+      error: (xhr) => { console.error('Group delete error', xhr); reject(new Error('Failed to delete group')); },
+    });
+  });
+}
+
+
 // Example POST helpers can import getCsrf from utils when needed in main file
 export function buildCsrfHeaders() {
   const headers = {};

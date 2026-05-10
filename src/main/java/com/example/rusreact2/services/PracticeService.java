@@ -2,6 +2,8 @@ package com.example.rusreact2.services;
 
 import com.example.rusreact2.data.dto.PracticeDto;
 import com.example.rusreact2.data.models.Practice;
+import com.example.rusreact2.repositories.LecturerRepository;
+import com.example.rusreact2.repositories.GroupRepository;
 import com.example.rusreact2.repositories.PairRepository;
 import com.example.rusreact2.repositories.PracticeRepository;
 import lombok.RequiredArgsConstructor;
@@ -19,8 +21,10 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 public class PracticeService {
+    private final GroupRepository groupRepository;
     private final PracticeRepository practiceRepository;
     private final PairRepository pairRepository;
+    private final LecturerRepository lecturerRepository;
 
     /// Создание новой практики.
     /// Проверки:
@@ -59,8 +63,26 @@ public class PracticeService {
                     "Дата окончания не может быть раньше даты начала"));
         }
 
-        // Проверка: нет ли у группы практики того же типа с пересекающимися датами
-        return practiceRepository.findOverlappingSameType(
+        // Преподаватель обязателен
+        if (practice.getLecturerUuid() == null) {
+            return Mono.error(new ResponseStatusException(HttpStatus.BAD_REQUEST, "Преподаватель обязателен"));
+        }
+
+        // Проверка: преподаватель существует и группа активна
+        return lecturerRepository.findById(practice.getLecturerUuid())
+                .switchIfEmpty(Mono.error(new ResponseStatusException(HttpStatus.NOT_FOUND, "Преподаватель не найден")))
+                .flatMap(lecturer -> Mono.just(practice))
+                .flatMap(validPractice -> groupRepository.findById(validPractice.getGroupUuid())
+                        .switchIfEmpty(Mono.error(new ResponseStatusException(HttpStatus.NOT_FOUND, "Группа не найдена")))
+                        .flatMap(group -> {
+                            if (!group.isActive()) {
+                                return Mono.error(new ResponseStatusException(
+                                        HttpStatus.BAD_REQUEST,
+                                        "Группа " + group.getGroupName() + " неактивна. Нельзя создать практику для неактивной группы."));
+                            }
+                            return Mono.just(validPractice);
+                        }))
+                .flatMap(validPractice -> practiceRepository.findOverlappingSameType(
                         practice.getGroupUuid(),
                         practice.getPracticeType().name(),
                         practice.getStartDate(),
@@ -96,7 +118,8 @@ public class PracticeService {
                     }
 
                     return saveNew(practice);
-                });
+                })
+        );
     }
 
     private Mono<PracticeDto> saveNew(Practice practice) {

@@ -15,6 +15,7 @@ public class PracticeDto {
     private LocalDate startDate;
     private LocalDate endDate;
     private boolean prohibitPairs;
+    private UUID lecturerUuid;
 
     public static PracticeDto from(Practice p) {
         PracticeDto dto = new PracticeDto();
@@ -25,6 +26,7 @@ public class PracticeDto {
         dto.setStartDate(p.getStartDate());
         dto.setEndDate(p.getEndDate());
         dto.setProhibitPairs(p.isProhibitPairs());
+        dto.setLecturerUuid(p.getLecturerUuid());
         return dto;
     }
 

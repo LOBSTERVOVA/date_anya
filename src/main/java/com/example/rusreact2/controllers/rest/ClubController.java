@@ -1,6 +1,7 @@
 package com.example.rusreact2.controllers.rest;
 
 import com.example.rusreact2.data.dto.ClubDto;
+import com.example.rusreact2.data.dto.ClubPageDto;
 import com.example.rusreact2.data.models.Club;
 import com.example.rusreact2.data.models.ClubSchedule;
 import com.example.rusreact2.services.ClubService;
@@ -26,6 +27,17 @@ public class ClubController {
     @GetMapping("/department/{departmentUuid}")
     public Flux<ClubDto> listByDepartment(@PathVariable UUID departmentUuid) {
         return clubService.findByDepartment(departmentUuid);
+    }
+
+    /**
+     * Пагинированный список клубов/секций по типу.
+     * GET /api/club?type=SPORTS_CLUB&page=0&size=12
+     */
+    @GetMapping
+    public Mono<ClubPageDto> listByType(@RequestParam String type,
+                                         @RequestParam(defaultValue = "0") int page,
+                                         @RequestParam(defaultValue = "12") int size) {
+        return clubService.findAllByType(type, page, size);
     }
 
     @GetMapping("/{uuid}")

@@ -5,8 +5,10 @@ import com.example.rusreact2.data.dto.ClubScheduleDto;
 import com.example.rusreact2.data.dto.RoomDto;
 import com.example.rusreact2.data.models.Club;
 import com.example.rusreact2.data.models.ClubSchedule;
+import com.example.rusreact2.data.dto.ClubPageDto;
 import com.example.rusreact2.repositories.ClubRepository;
 import com.example.rusreact2.repositories.ClubScheduleRepository;
+import com.example.rusreact2.repositories.DepartmentRepository;
 import com.example.rusreact2.repositories.RoomRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,11 +29,34 @@ public class ClubService {
     private final ClubRepository clubRepository;
     private final ClubScheduleRepository scheduleRepository;
     private final RoomRepository roomRepository;
+    private final DepartmentRepository departmentRepository;
 
     public Flux<ClubDto> findByDepartment(UUID departmentUuid) {
         return clubRepository.findByDepartmentUuid(departmentUuid)
                 .flatMap(this::enrichWithSchedules)
                 .flatMap(this::toDto);
+    }
+
+    /**
+     * Пагинированный список клубов/секций по типу.
+     * @param type SPORTS_CLUB или SCIENCE_CLUB
+     * @param page номер страницы (0-based)
+     * @param size размер страницы
+     */
+    public Mono<ClubPageDto> findAllByType(String type, int page, int size) {
+        long offset = (long) page * size;
+        Mono<Long> totalMono = clubRepository.countByType(type);
+        Flux<ClubDto> contentFlux = clubRepository.findByType(type, size, offset)
+                .flatMap(this::enrichWithSchedules)
+                .flatMap(this::toDto);
+
+        return Mono.zip(contentFlux.collectList(), totalMono)
+                .map(tuple -> {
+                    List<ClubDto> content = tuple.getT1();
+                    long total = tuple.getT2();
+                    int totalPages = size > 0 ? (int) Math.ceil((double) total / size) : 0;
+                    return new ClubPageDto(content, total, totalPages, page, size);
+                });
     }
 
     public Mono<ClubDto> findById(UUID uuid) {
@@ -125,7 +150,20 @@ public class ClubService {
             dtoMono = Mono.just(dto);
         }
 
-        return dtoMono.map(d -> {
+        // Обогащаем названием кафедры
+        Mono<ClubDto> withDeptName = dtoMono.flatMap(d -> {
+            if (club.getDepartmentUuid() != null) {
+                return departmentRepository.findById(club.getDepartmentUuid())
+                        .map(dept -> {
+                            d.setDepartmentName(dept.getName());
+                            return d;
+                        })
+                        .defaultIfEmpty(d);
+            }
+            return Mono.just(d);
+        });
+
+        return withDeptName.map(d -> {
             if (club.getSchedules() != null) {
                 d.setSchedules(club.getSchedules().stream().map(s -> {
                     ClubScheduleDto sd = new ClubScheduleDto();

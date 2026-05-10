@@ -32,4 +32,7 @@ public class Practice {
 
     @Column("prohibit_pairs")
     private boolean prohibitPairs;
+
+    @Column("lecturer_uuid")
+    private UUID lecturerUuid;
 }

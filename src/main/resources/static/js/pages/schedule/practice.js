@@ -2,13 +2,16 @@
 // Вкладка «Практика»: выбор групп + сетка дней учебного года + модалка практики
 // Лениво загружается schedule-tabs.js при первом переключении
 
-import { fetchGroups, fetchPractices, savePractice, deletePractice } from './api.js';
+import { fetchGroups, fetchPractices, savePractice, deletePractice, fetchDepartments, fetchLecturers } from './api.js';
 import { formatDateDDMM, formatEducationForm, dateToIso, showToast } from './utils.js';
 
 let allGroups = [];
 let selectedGroups = []; // сохраняет порядок выбора чекбоксов
 let academicDates = null; // { startDate, endDate } — кэш учебного года
+let editingPracticeUuid = null; // uuid редактируемой практики (null = создание)
 let allPractices = []; // загруженные практики для текущей сетки
+let loadedDepartments = [];
+let loadedLecturers = [];
 
 const FORM_ORDER = { 'FULL_TIME': 0, 'PART_TIME': 1, 'MIXED': 2 };
 const FORM_LABELS = { 'FULL_TIME': 'Очная', 'PART_TIME': 'Заочная', 'MIXED': 'Очно-заочная' };
@@ -29,6 +32,9 @@ export async function init(container) {
         container.innerHTML = '<div class="alert alert-danger m-4">Ошибка загрузки групп</div>';
         return;
     }
+
+    // Фоновая загрузка кафедр и преподавателей (не блокирует отрисовку)
+    loadDeptsAndLecturers();
 
     academicDates = makeAcademicYear();
     renderUI(container);
@@ -135,6 +141,25 @@ function renderUI(container) {
                      style="max-height:200px; overflow-y:auto;"></div>
               </div>
               <div class="mb-3">
+                <label class="form-label">Кафедра <span class="text-danger">*</span></label>
+                <div class="position-relative">
+                  <input type="text" class="form-control" id="practice-modal-dept-search"
+                         placeholder="Поиск кафедры…" autocomplete="off" />
+                  <div id="practice-modal-dept-dropdown" class="dropdown-menu w-100"
+                       style="max-height:200px;overflow-y:auto;display:none;"></div>
+                </div>
+              </div>
+              <div class="mb-3" id="practice-modal-lecturer-block" style="display:none;">
+                <label class="form-label">Преподаватель <span class="text-danger">*</span></label>
+                <div class="position-relative">
+                  <input type="text" class="form-control" id="practice-modal-lecturer-search"
+                         placeholder="Поиск преподавателя…" autocomplete="off" disabled />
+                  <div id="practice-modal-lecturer-dropdown" class="dropdown-menu w-100"
+                       style="max-height:200px;overflow-y:auto;display:none;"></div>
+                </div>
+                <div id="practice-modal-selected-lecturer" class="mt-2"></div>
+              </div>
+              <div class="mb-3">
                 <label class="form-label" for="practice-modal-type">Тип практики</label>
                 <select class="form-select" id="practice-modal-type">
                   <option value="">—</option>
@@ -175,6 +200,24 @@ function renderUI(container) {
     `;
 
     container.querySelector('#practice-groups-search').addEventListener('input', () => renderGroupList());
+
+    // Поиск кафедры в модалке
+    const deptSearch = document.getElementById('practice-modal-dept-search');
+    const deptDropdown = document.getElementById('practice-modal-dept-dropdown');
+    if (deptSearch) {
+        deptSearch.addEventListener('input', () => filterModalDepts(deptSearch.value));
+        deptSearch.addEventListener('focus', () => { if (deptSearch.value) filterModalDepts(deptSearch.value); else { populateModalDeptDropdown(''); deptDropdown.style.display = 'block'; } });
+        document.addEventListener('click', (e) => { if (!deptSearch.contains(e.target) && !deptDropdown.contains(e.target)) deptDropdown.style.display = 'none'; });
+    }
+
+    // Поиск преподавателя в модалке
+    const lectSearch = document.getElementById('practice-modal-lecturer-search');
+    const lectDropdown = document.getElementById('practice-modal-lecturer-dropdown');
+    if (lectSearch) {
+        lectSearch.addEventListener('input', () => filterModalLecturers(lectSearch.value));
+        lectSearch.addEventListener('focus', () => { if (lectSearch.value) filterModalLecturers(lectSearch.value); else { populateModalLectDropdown(''); lectDropdown.style.display = 'block'; } });
+        document.addEventListener('click', (e) => { if (!lectSearch.contains(e.target) && !lectDropdown.contains(e.target)) lectDropdown.style.display = 'none'; });
+    }
     container.querySelector('#practice-modal-save').addEventListener('click', () => onSavePractice());
 
     // Статистика
@@ -564,6 +607,148 @@ function renderLegend() {
     `;
 }
 
+
+// ----------------------------------------------------------------
+//  Выпадающий список кафедр в модалке
+// ----------------------------------------------------------------
+
+let modalSelectedDeptUuid = null;
+let modalSelectedLecturerUuid = null;
+
+function populateModalDeptDropdown(search) {
+    const dropdown = document.getElementById('practice-modal-dept-dropdown');
+    if (!dropdown) return;
+    dropdown.innerHTML = '';
+
+    const filtered = loadedDepartments.filter(d =>
+        d.name.toLowerCase().includes(search.toLowerCase())
+    );
+
+    if (filtered.length > 0) {
+        filtered.forEach(dept => {
+            const item = document.createElement('div');
+            item.className = 'dropdown-item py-2 px-3';
+            item.textContent = dept.name;
+            item.addEventListener('click', () => {
+                document.getElementById('practice-modal-dept-search').value = dept.name;
+                modalSelectedDeptUuid = dept.uuid;
+                dropdown.style.display = 'none';
+                // Показываем блок преподавателя
+                document.getElementById('practice-modal-lecturer-search').disabled = false;
+                document.getElementById('practice-modal-lecturer-block').style.display = 'block';
+                document.getElementById('practice-modal-lecturer-search').value = '';
+                modalSelectedLecturerUuid = null;
+                document.getElementById('practice-modal-selected-lecturer').innerHTML = '';
+                populateModalLectDropdown('');
+            });
+            const hr = document.createElement('hr');
+            hr.className = 'm-0 p-0';
+            dropdown.appendChild(item);
+            dropdown.appendChild(hr);
+        });
+    } else {
+        const empty = document.createElement('div');
+        empty.className = 'dropdown-item text-muted py-2 px-3';
+        empty.textContent = 'Кафедры не найдены';
+        dropdown.appendChild(empty);
+    }
+    dropdown.style.display = 'block';
+}
+
+function filterModalDepts(query) {
+    populateModalDeptDropdown(query);
+}
+
+// ----------------------------------------------------------------
+//  Выпадающий список преподавателей в модалке
+// ----------------------------------------------------------------
+
+function populateModalLectDropdown(search) {
+    const dropdown = document.getElementById('practice-modal-lecturer-dropdown');
+    if (!dropdown) return;
+    dropdown.innerHTML = '';
+
+    const deptLecturers = loadedLecturers.filter(l =>
+        l.department && l.department.uuid === modalSelectedDeptUuid
+    );
+
+    const filtered = deptLecturers.filter(l => {
+        const fio = (l.lastName + ' ' + l.firstName + ' ' + l.patronymic).toLowerCase();
+        return fio.includes(search.toLowerCase()) && l.uuid !== modalSelectedLecturerUuid;
+    });
+
+    if (filtered.length > 0) {
+        filtered.forEach(lect => {
+            const item = document.createElement('div');
+            item.className = 'dropdown-item py-2 px-3';
+            item.textContent = lect.lastName + ' ' + lect.firstName + ' ' + lect.patronymic;
+            item.addEventListener('click', () => {
+                modalSelectedLecturerUuid = lect.uuid;
+                document.getElementById('practice-modal-lecturer-search').value = '';
+                dropdown.style.display = 'none';
+                const shortName = getLecturerFio(lect.uuid);
+                document.getElementById('practice-modal-selected-lecturer').innerHTML =
+                    '<span class="badge bg-primary fs-6">Преподаватель: ' + shortName +
+                    ' <button type="button" class="btn-close btn-close-white ms-1" style="font-size:0.6rem;" id="practice-modal-remove-lecturer"></button></span>';
+                document.getElementById('practice-modal-remove-lecturer').addEventListener('click', () => {
+                    modalSelectedLecturerUuid = null;
+                    document.getElementById('practice-modal-selected-lecturer').innerHTML = '';
+                    document.getElementById('practice-modal-lecturer-search').value = '';
+                });
+            });
+            const hr = document.createElement('hr');
+            hr.className = 'm-0 p-0';
+            dropdown.appendChild(item);
+            dropdown.appendChild(hr);
+        });
+    } else {
+        const empty = document.createElement('div');
+        empty.className = 'dropdown-item text-muted py-2 px-3';
+        empty.textContent = deptLecturers.length === 0 ? 'Нет преподавателей на этой кафедре' : 'Преподаватели не найдены';
+        dropdown.appendChild(empty);
+    }
+    dropdown.style.display = 'block';
+}
+
+function filterModalLecturers(query) {
+    populateModalLectDropdown(query);
+}
+
+// ----------------------------------------------------------------
+//  Фоновая загрузка кафедр и преподавателей
+// ----------------------------------------------------------------
+
+function loadDeptsAndLecturers() {
+    if (window.loadedDepartments && window.loadedDepartments.length) {
+        loadedDepartments = window.loadedDepartments;
+    } else {
+        fetchDepartments('').then(list => {
+            loadedDepartments = list || [];
+            loadedDepartments.sort((a, b) => a.name.localeCompare(b.name, 'ru'));
+            window.loadedDepartments = loadedDepartments;
+        }).catch(e => { console.error('Depts load error', e); });
+    }
+    if (window.loadedLecturers && window.loadedLecturers.length) {
+        loadedLecturers = window.loadedLecturers;
+    } else {
+        fetchLecturers('').then(list => {
+            loadedLecturers = list || [];
+            window.loadedLecturers = loadedLecturers;
+        }).catch(e => { console.error('Lecturers load error', e); });
+    }
+}
+
+// ----------------------------------------------------------------
+//  Вспомогательная: ФИО преподавателя по uuid
+// ----------------------------------------------------------------
+
+function getLecturerFio(uuid) {
+    if (!uuid) return null;
+    const l = loadedLecturers.find(lec => lec.uuid === uuid);
+    if (!l) return null;
+    return l.lastName + ' ' + l.firstName[0] + '.' + l.patronymic[0] + '.';
+}
+
 // ----------------------------------------------------------------
 //  Клик по ячейке → модалка практики
 // ----------------------------------------------------------------
@@ -575,34 +760,78 @@ function setupGridClickDelegation(container) {
     body.addEventListener('click', (e) => {
         const cell = e.target.closest('.practice-cell');
         if (!cell) return;
-        openPracticeModal(cell.dataset.date, cell.dataset.groupUuid);
+        const dateIso = cell.dataset.date;
+        const groupUuid = cell.dataset.groupUuid;
+        // Ищем существующую практику для этой ячейки
+        const existing = allPractices.find(p => p.groupUuid === groupUuid && p.startDate <= dateIso && p.endDate >= dateIso);
+        openPracticeModal(dateIso, groupUuid, existing || null);
     });
 }
 
-function openPracticeModal(dateIso, groupUuid) {
+function openPracticeModal(dateIso, groupUuid, existingPractice) {
     const modalEl = document.getElementById('practice-modal');
     if (!modalEl) return;
 
-    // Дата начала — из ячейки, дата окончания — туда же
-    document.getElementById('practice-modal-start').value = dateIso || '';
-    document.getElementById('practice-modal-end').value = dateIso || '';
+    editingPracticeUuid = existingPractice ? existingPractice.uuid : null;
 
-    // Сбрасываем остальные поля
-    document.getElementById('practice-modal-name').value = '';
-    document.getElementById('practice-modal-type').value = '';
-    document.getElementById('practice-modal-block-pairs').checked = false;
+    // Дата начала — из ячейки/практики, дата окончания — туда же
+    document.getElementById('practice-modal-start').value = existingPractice ? existingPractice.startDate : (dateIso || '');
+    document.getElementById('practice-modal-end').value = existingPractice ? existingPractice.endDate : (dateIso || '');
+
+    // Поля практики
+    document.getElementById('practice-modal-name').value = existingPractice ? (existingPractice.title || '') : '';
+    document.getElementById('practice-modal-type').value = existingPractice ? (existingPractice.practiceType || '') : '';
+    document.getElementById('practice-modal-block-pairs').checked = existingPractice ? existingPractice.prohibitPairs : false;
     const errEl = document.getElementById('practice-modal-error');
     if (errEl) errEl.style.display = 'none';
 
+    // Сброс кафедры и преподавателя
+    document.getElementById('practice-modal-dept-search').value = '';
+    const deptDropdown = document.getElementById('practice-modal-dept-dropdown');
+    if (deptDropdown) deptDropdown.style.display = 'none';
+    document.getElementById('practice-modal-lecturer-search').value = '';
+    document.getElementById('practice-modal-lecturer-search').disabled = true;
+    const lectDropdown = document.getElementById('practice-modal-lecturer-dropdown');
+    if (lectDropdown) lectDropdown.style.display = 'none';
+    document.getElementById('practice-modal-selected-lecturer').innerHTML = '';
+    const lectBlock = document.getElementById('practice-modal-lecturer-block');
+    if (lectBlock) lectBlock.style.display = 'none';
+    modalSelectedDeptUuid = null;
+    modalSelectedLecturerUuid = null;
+
+    // Если редактируем и есть lecturerUuid — восстанавливаем кафедру и преподавателя
+    if (existingPractice && existingPractice.lecturerUuid && loadedLecturers.length > 0 && loadedDepartments.length > 0) {
+        const lecturer = loadedLecturers.find(l => l.uuid === existingPractice.lecturerUuid);
+        if (lecturer && lecturer.department) {
+            const dept = loadedDepartments.find(d => d.uuid === lecturer.department.uuid);
+            if (dept) {
+                document.getElementById('practice-modal-dept-search').value = dept.name;
+                modalSelectedDeptUuid = dept.uuid;
+            }
+            document.getElementById('practice-modal-lecturer-search').disabled = false;
+            if (lectBlock) lectBlock.style.display = 'block';
+            modalSelectedLecturerUuid = lecturer.uuid;
+            const shortName = getLecturerFio(lecturer.uuid);
+            document.getElementById('practice-modal-selected-lecturer').innerHTML =
+                '<span class="badge bg-primary fs-6">Преподаватель: ' + shortName +
+                ' <button type="button" class="btn-close btn-close-white ms-1" style="font-size:0.6rem;" id="practice-modal-remove-lecturer"></button></span>';
+            document.getElementById('practice-modal-remove-lecturer').addEventListener('click', () => {
+                modalSelectedLecturerUuid = null;
+                document.getElementById('practice-modal-selected-lecturer').innerHTML = '';
+                document.getElementById('practice-modal-lecturer-search').value = '';
+            });
+        }
+    }
+
     // Отрисовываем чекбоксы групп в модалке
-    renderModalGroups(groupUuid);
+    renderModalGroups(groupUuid, existingPractice);
 
     // Открываем
     const modal = new bootstrap.Modal(modalEl, { focus: false });
     modal.show();
 }
 
-function renderModalGroups(preCheckedUuid) {
+function renderModalGroups(preCheckedUuid, existingPractice) {
     const container = document.getElementById('practice-modal-groups');
     if (!container) return;
 
@@ -611,12 +840,20 @@ function renderModalGroups(preCheckedUuid) {
         return;
     }
 
+    // При редактировании — только группа практики
+    const editableGroupUuid = existingPractice ? existingPractice.groupUuid : null;
+
     container.innerHTML = selectedGroups.map(g => {
-        const checked = g.uuid === preCheckedUuid ? ' checked' : '';
+        let checked = g.uuid === preCheckedUuid ? ' checked' : '';
+        let disabled = '';
+        if (editableGroupUuid) {
+            checked = g.uuid === editableGroupUuid ? ' checked' : '';
+            disabled = g.uuid !== editableGroupUuid ? ' disabled' : '';
+        }
         return `
           <div class="form-check">
             <input class="form-check-input practice-modal-group-check" type="checkbox"
-                   value="${g.uuid}" id="pmg-${g.uuid}"${checked} />
+                   value="${g.uuid}" id="pmg-${g.uuid}"${checked}${disabled} />
             <label class="form-check-label" for="pmg-${g.uuid}">
               <span class="fw-medium">${g.groupName}</span>
               <span class="text-muted ms-2 small">
@@ -653,6 +890,10 @@ async function onSavePractice() {
         showError('Дата окончания не может быть раньше даты начала');
         return;
     }
+    if (!modalSelectedLecturerUuid) {
+        showError('Выберите преподавателя');
+        return;
+    }
 
     // Собираем выбранные группы в модалке
     const checks = document.querySelectorAll('#practice-modal-groups .practice-modal-group-check:checked');
@@ -670,6 +911,21 @@ async function onSavePractice() {
     }
     clearError();
 
+    // Если редактируем — удаляем старую практику
+    if (editingPracticeUuid) {
+        try {
+            await deletePractice(editingPracticeUuid);
+        } catch (e) {
+            if (saveBtn) {
+                saveBtn.disabled = false;
+                const spinner = saveBtn.querySelector('.spinner-border');
+                if (spinner) spinner.style.display = 'none';
+            }
+            showError('Не удалось обновить практику: ' + (e.message || 'Ошибка'));
+            return;
+        }
+    }
+
     // Создаём практику для каждой выбранной группы
     let errors = [];
     let created = 0;
@@ -681,7 +937,8 @@ async function onSavePractice() {
                 practiceType: type,
                 startDate: startVal,
                 endDate: endVal,
-                prohibitPairs: prohibitPairs
+                prohibitPairs: prohibitPairs,
+                lecturerUuid: modalSelectedLecturerUuid
             });
             created++;
         } catch (e) {
@@ -706,6 +963,7 @@ async function onSavePractice() {
     const modal = bootstrap.Modal.getInstance(modalEl);
     if (modal) modal.hide();
 
+    editingPracticeUuid = null;
     await loadPractices();
 
     const msg = created > 0
@@ -849,6 +1107,7 @@ function renderStatsList() {
                         ${p.title || pc.label || p.practiceType}
                       </span>
                       <span class="text-muted small">${formatDateDDMM(new Date(p.startDate))} – ${formatDateDDMM(new Date(p.endDate))}</span>
+                      ${p.lecturerUuid ? `<span class="text-muted small" style="min-width:140px;">Преподаватель: ${getLecturerFio(p.lecturerUuid) || 'не найден'}</span>` : ''}
                       ${p.prohibitPairs ? `
                         <span style="cursor:help;"
                               data-bs-toggle="tooltip" data-bs-placement="top"

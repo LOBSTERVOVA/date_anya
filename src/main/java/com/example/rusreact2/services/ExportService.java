@@ -81,6 +81,7 @@ public class ExportService {
 
         // 1. Загружаем группы
         Mono<Map<UUID, Group>> groupsMono = groupRepository.findAllById(groupUuids)
+                .filter(Group::isActive)
                 .collectMap(Group::getUuid);
 
         // 2. Загружаем пары (groupUuids и lecturerUuids приходят прямо в сущности)
@@ -589,6 +590,7 @@ public class ExportService {
                                         .collectMap(Room::getUuid);
                                 Mono<Map<UUID, Group>> groupsMono = Flux.fromIterable(allGroupUuids)
                                         .flatMap(groupRepository::findById)
+                                        .filter(Group::isActive)
                                         .collectMap(Group::getUuid);
 
                                 return Mono.zip(subjectsMono, roomsMono, groupsMono)

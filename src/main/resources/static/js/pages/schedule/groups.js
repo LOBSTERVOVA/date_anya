@@ -1,4 +1,4 @@
-import { fetchGroups } from './api.js';
+import { fetchGroups, deleteGroup } from './api.js';
 import { formatEducationForm, showToast } from './utils.js';
 import { buildCsrfHeaders } from './api.js';
 
@@ -110,7 +110,13 @@ function renderGroupList(filter = '') {
         }
 
         const info = formatGroupInfo(g);
-        html += `<div class="ms-4 mb-1 small">${info}</div>`;
+        html += `<div class="ms-4 mb-1 small d-flex justify-content-between align-items-start bg-light rounded p-2">
+          <span>${info}</span>
+          <button class="btn btn-outline-danger btn-sm ms-2 flex-shrink-0 group-delete-btn"
+                  data-uuid="${g.uuid}" title="Удалить группу">
+            <i class="bi bi-trash"></i>
+          </button>
+        </div>`;
     }
 
     if (!filtered.length) {
@@ -144,6 +150,30 @@ function bindEvents() {
             formWrap.style.display = 'none';
             addBtn.style.display = '';
             document.getElementById('groups-create-form').reset();
+        });
+    }
+
+    // Обработчики удаления групп (делегирование)
+    const groupsList = document.getElementById('groups-list');
+    if (groupsList) {
+        groupsList.addEventListener('click', async (e) => {
+            const btn = e.target.closest('.group-delete-btn');
+            if (!btn) return;
+            const uuid = btn.dataset.uuid;
+            const groupName = btn.closest('div').querySelector('span')?.textContent?.split(' — ')[0] || 'группу';
+            if (!confirm(`Удалить группу «${groupName}»?\nГруппа станет неактивной и не будет отображаться в списках.`)) return;
+            try {
+                btn.disabled = true;
+                await deleteGroup(uuid);
+                showToast(`Группа «${groupName}» удалена`, 'success', 'Успех');
+                await loadData();
+                renderStats();
+                renderGroupList(document.getElementById('groups-search')?.value || '');
+            } catch (e) {
+                console.error('Delete group failed', e);
+                showToast(e.message || 'Не удалось удалить группу', 'danger', 'Ошибка');
+                btn.disabled = false;
+            }
         });
     }
 
