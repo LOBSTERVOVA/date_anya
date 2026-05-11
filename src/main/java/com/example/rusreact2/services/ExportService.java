@@ -750,15 +750,30 @@ public class ExportService {
                 sb.append(subject.getName());
             }
 
-            // Группы
+            // Группы (сгруппированы по курсу)
             Set<UUID> groupUuids = pairGroupMap.getOrDefault(p.getUuid(), Set.of());
             if (!groupUuids.isEmpty()) {
-                String groupNames = groupUuids.stream()
+                // Группируем по курсу
+                Map<Integer, List<Group>> byCourse = groupUuids.stream()
                         .map(groupMap::get)
                         .filter(Objects::nonNull)
-                        .map(Group::getGroupName)
-                        .filter(Objects::nonNull)
-                        .collect(Collectors.joining(", "));
+                        .collect(Collectors.groupingBy(
+                                g -> g.getCourse() > 0 ? g.getCourse() : 0,
+                                LinkedHashMap::new,
+                                Collectors.toList()
+                        ));
+                String groupNames = byCourse.entrySet().stream()
+                        .map(entry -> {
+                            String names = entry.getValue().stream()
+                                    .map(g -> g.getGroupName() != null ? g.getGroupName() : "")
+                                    .filter(s -> !s.isBlank())
+                                    .collect(Collectors.joining(", "));
+                            if (entry.getKey() > 0) {
+                                return entry.getKey() + " курс: " + names;
+                            }
+                            return names;
+                        })
+                        .collect(Collectors.joining("; "));
                 if (!groupNames.isBlank()) {
                     if (sb.length() > 0) sb.append(", ");
                     sb.append(groupNames);

@@ -38,6 +38,42 @@
           <div class="row g-4">
             <!-- ЛЕВАЯ КОЛОНКА: форма -->
             <div class="col-12 col-lg-7">
+
+              <!-- Основная фотография -->
+              <div class="mb-3">
+                <label class="form-label fw-semibold mb-2" style="font-size: 0.95rem; color: #555;">
+                  <i class="bi bi-camera me-1"></i>Основная фотография
+                </label>
+                <div id="main-photo-upload-zone" class="d-flex align-items-center justify-content-center rounded-3"
+                     style="border: 2px dashed #d0d0d0; min-height: 140px; cursor: pointer; transition: all 0.2s; position: relative; overflow: hidden; background: #fafafa;">
+                  <div id="main-photo-placeholder" class="text-center text-muted">
+                    <i class="bi bi-cloud-arrow-up" style="font-size: 2rem;"></i>
+                    <p class="mb-0 mt-1" style="font-size: 0.85rem;">Нажмите или перетащите фото</p>
+                  </div>
+                  <img id="main-photo-preview" src="" alt="" style="display:none; width:100%; height:100%; object-fit:cover; position:absolute; top:0; left:0;" />
+                  <button id="main-photo-remove" type="button" class="btn btn-sm btn-danger rounded-circle"
+                          style="display:none; position:absolute; top:8px; right:8px; width:28px; height:28px; padding:0; z-index:2;"
+                          title="Удалить фото"><i class="bi bi-x"></i></button>
+                  <input type="file" id="main-photo-input" accept="image/*" style="display:none;" />
+                </div>
+              </div>
+
+              <!-- Фотогалерея -->
+              <div class="mb-3">
+                <label class="form-label fw-semibold mb-2" style="font-size: 0.95rem; color: #555;">
+                  <i class="bi bi-images me-1"></i>Фотогалерея
+                </label>
+                <div id="gallery-photos-container" class="d-flex flex-wrap gap-2 mb-2"></div>
+                <div id="gallery-upload-zone" class="d-flex align-items-center justify-content-center rounded-3"
+                     style="border: 2px dashed #d0d0d0; min-height: 80px; cursor: pointer; transition: all 0.2s; background: #fafafa;">
+                  <div class="text-center text-muted">
+                    <i class="bi bi-plus-circle" style="font-size: 1.5rem;"></i>
+                    <p class="mb-0 mt-1" style="font-size: 0.8rem;">Добавить фотографии</p>
+                  </div>
+                  <input type="file" id="gallery-photos-input" accept="image/*" multiple style="display:none;" />
+                </div>
+              </div>
+
               <!-- Тип новости — цветные pills с иконками -->
               <div class="mb-3">
                 <label class="form-label fw-semibold mb-2" style="font-size: 0.95rem; color: #555;">Тип новости</label>
@@ -105,6 +141,32 @@
       </div>
     </div>
   </div>
+
+  <!-- ==================== МОДАЛКА ПРОСМОТРА ==================== -->
+  <div id="view-news-modal" class="modal fade" tabindex="-1" style="display:none;">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+      <div class="modal-content border-0 overflow-hidden" style="border-radius: 24px; box-shadow: 0 25px 80px rgba(0,0,0,0.25);">
+        <div class="modal-header border-0 px-4 pt-4 pb-0">
+          <span id="view-news-type-badge" class="badge rounded-pill px-3 py-2 mb-2" style="font-size: 0.85rem;"></span>
+          <button type="button" class="btn-close" id="view-news-close" aria-label="Close" style="opacity: 0.5; transition: opacity 0.2s;"
+                  onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.5'"></button>
+        </div>
+        <div class="modal-body px-4 pb-4 pt-2">
+          <h3 id="view-news-title" class="fw-bold mb-3" style="font-family: 'Roboto', sans-serif; font-size: 1.75rem; line-height: 1.3;"></h3>
+          <div id="view-news-date" class="text-muted mb-4" style="font-size: 0.9rem;"></div>
+          <div id="view-news-main-photo" class="mb-4" style="display:none;">
+            <img id="view-news-main-photo-img" src="" alt="" style="width:100%; max-height:500px; object-fit:cover; border-radius:16px;" />
+          </div>
+          <div id="view-news-content" style="font-family: 'Roboto', sans-serif; font-size: 1rem; line-height: 1.75; color: #333;"></div>
+          <div id="view-news-gallery" class="mt-4" style="display:none;">
+            <h5 class="fw-bold mb-3" style="font-family: 'Roboto', sans-serif;"><i class="bi bi-images me-2"></i>Фотогалерея</h5>
+            <div id="view-news-gallery-grid" class="row g-3"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
 </section>
 
 <!-- Quill -->
@@ -234,6 +296,49 @@
       font-size: 2rem !important;
     }
   }
+
+  /* ---- Загрузка фото ---- */
+  #main-photo-upload-zone:hover { border-color: #FB820A !important; background: #fff8f2 !important; }
+  #gallery-upload-zone:hover { border-color: #FB820A !important; background: #fff8f2 !important; }
+  .gallery-thumb {
+    width: 80px; height: 80px; border-radius: 10px; object-fit: cover; cursor: pointer;
+    border: 2px solid #e9ecef; transition: all 0.2s;
+  }
+  .gallery-thumb:hover { border-color: #FB820A; transform: scale(1.05); }
+  .gallery-thumb-wrap {
+    position: relative; display: inline-block;
+  }
+  .gallery-thumb-remove {
+    position: absolute; top: -6px; right: -6px; width: 22px; height: 22px; padding: 0;
+    border-radius: 50%; font-size: 12px; line-height: 20px; opacity: 0;
+    transition: opacity 0.2s; z-index: 2;
+  }
+  .gallery-thumb-wrap:hover .gallery-thumb-remove { opacity: 1; }
+  #gallery-lightbox {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 9999;
+    background: rgba(0,0,0,0.92); display: none; align-items: center; justify-content: center;
+  }
+  #gallery-lightbox img { max-width: 90vw; max-height: 90vh; border-radius: 12px; object-fit: contain; }
+  #gallery-lightbox .lightbox-close {
+    position: absolute; top: 20px; right: 30px; color: #fff; font-size: 2.5rem;
+    cursor: pointer; opacity: 0.7; transition: opacity 0.2s; background: none; border: none;
+  }
+  #gallery-lightbox .lightbox-close:hover { opacity: 1; }
+  #gallery-lightbox .lightbox-prev, #gallery-lightbox .lightbox-next {
+    position: absolute; top: 50%; transform: translateY(-50%); color: #fff;
+    font-size: 3rem; cursor: pointer; opacity: 0.6; transition: opacity 0.2s;
+    background: none; border: none; padding: 20px;
+  }
+  #gallery-lightbox .lightbox-prev:hover, #gallery-lightbox .lightbox-next:hover { opacity: 1; }
+  #gallery-lightbox .lightbox-prev { left: 10px; }
+  #gallery-lightbox .lightbox-next { right: 10px; }
+  .news-card-img {
+    width: 100%; height: 320px; object-fit: cover; border-radius: 0.75rem;
+  }
+  @media (max-width: 991px) {
+    .news-card-img { height: 260px; }
+  }
+
 </style>
 
 <script type="module" src="/js/pages/news/news.js"></script>

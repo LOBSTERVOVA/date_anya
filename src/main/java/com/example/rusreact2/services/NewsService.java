@@ -34,6 +34,8 @@ public class NewsService {
                     .flatMap(existing -> {
                         existing.setTitle(news.getTitle());
                         existing.setHtmlContent(news.getHtmlContent());
+                        existing.setMainPhotoUrl(news.getMainPhotoUrl());
+                        existing.setGalleryPhotos(news.getGalleryPhotos());
                         existing.setType(news.getType());
                         existing.setUpdatedAt(now);
                         return newsRepository.save(existing);

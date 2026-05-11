@@ -7,6 +7,7 @@ import org.springframework.data.annotation.Id;
 import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Table;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -22,6 +23,12 @@ public class News {
 
     @Column(value = "html_content")
     String htmlContent;
+
+    @Column(value = "main_photo_url")
+    String mainPhotoUrl;
+
+    @Column(value = "gallery_photos")
+    List<String> galleryPhotos;
 
     NewsType type;
 

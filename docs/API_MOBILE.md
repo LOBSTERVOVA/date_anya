@@ -276,6 +276,8 @@
 | `uuid` | UUID |
 | `title` | String |
 | `htmlContent` | String |
+| `mainPhotoUrl` | String (относительный путь — добавить MINIO_URL) |
+| `galleryPhotos` | List\<String\> (массив относительных путей — добавить MINIO_URL) |
 | `type` | NewsType |
 | `createdAt` | LocalDateTime |
 | `updatedAt` | LocalDateTime |

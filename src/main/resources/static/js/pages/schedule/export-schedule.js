@@ -365,36 +365,42 @@ export function initExportSchedule() {
   
   if (exportConfirm) {
     exportConfirm.addEventListener('click', async () => {
+      if (exportConfirm.disabled) return;
+
       const from = document.getElementById('export-from');
       const to = document.getElementById('export-to');
       const fromIso = from && from.value ? from.value : dateIsoFor(0);
       const toIso = to && to.value ? to.value : dateIsoFor(6);
-      
-      if (!fromIso || !toIso) { 
-        showToast('Укажите период экспорта', 'warning', 'Ошибка'); 
-        return; 
+
+      if (!fromIso || !toIso) {
+        showToast('Укажите период экспорта', 'warning', 'Ошибка');
+        return;
       }
-      
+
       const groupUuids = getSelectedExportGroupUuids();
-      if (!groupUuids.length) { 
-        showToast('Выберите хотя бы одну группу для экспорта', 'warning', 'Ошибка'); 
-        return; 
+      if (!groupUuids.length) {
+        showToast('Выберите хотя бы одну группу для экспорта', 'warning', 'Ошибка');
+        return;
       }
-      
+
+      const originalHtml = exportConfirm.innerHTML;
+      exportConfirm.disabled = true;
+      exportConfirm.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Экспорт…';
+
       try {
         // Конвертируем даты в начало/конец недели
         const weekStart = toWeekStart(fromIso);
         const weekEnd = toWeekEnd(toIso);
-        
+
         console.log('Export dates:', { from: fromIso, to: toIso, weekStart, weekEnd });
-        
+
         const { blob, filename } = await exportScheduleExcel({ from: weekStart, to: weekEnd, groups: groupUuids });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
-        a.href = url; 
+        a.href = url;
         a.download = filename || 'schedule.xlsx';
-        document.body.appendChild(a); 
-        a.click(); 
+        document.body.appendChild(a);
+        a.click();
         a.remove();
         URL.revokeObjectURL(url);
         toggleExportModal(false);
@@ -402,6 +408,8 @@ export function initExportSchedule() {
       } catch (e) {
         console.error('Export failed', e);
         showToast('Не удалось экспортировать расписание', 'danger', 'Ошибка');
+        exportConfirm.disabled = false;
+        exportConfirm.innerHTML = originalHtml;
       }
     });
   }

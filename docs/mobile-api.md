@@ -354,6 +354,72 @@ UUID: строка в стандартном формате (`xxxxxxxx-xxxx-xxxx
 
 ---
 
+## 6. GET /api/mobile/news?page=&size=
+
+**Описание.** Пагинированный список новостей (свежие сверху).
+**Логика.** `NewsService.findAllPaged(page, size)` → `newsRepository.findAllPaged(limit, offset)` + `newsRepository.countAll()`.
+
+### Параметры запроса
+
+| Параметр | Тип | Обязательный | По умолчанию |
+|----------|-----|-------------|-------------|
+| `page` | `int` | Нет | `0` |
+| `size` | `int` | Нет | `10` |
+
+### Тело ответа
+```json
+{
+  "content": [NewsDto, ...],
+  "totalElements": 42,
+  "totalPages": 5
+}
+```
+
+---
+
+## 7. GET /api/mobile/news/{uuid}
+
+**Описание.** Одна новость по UUID.
+**Логика.** `NewsService.findById(uuid)` → `newsRepository.findById(uuid)` → 404 если не найдено.
+
+### Параметры запроса
+Нет (UUID в пути).
+
+### Тело ответа
+`NewsDto`
+
+<details>
+<summary><b>NewsDto</b></summary>
+
+| Поле | Тип | Описание |
+|------|-----|----------|
+| `uuid` | `UUID` | Уникальный идентификатор |
+| `title` | `String` | Заголовок новости |
+| `htmlContent` | `String` | HTML-содержимое (из Quill-редактора) |
+| `mainPhotoUrl` | `String` | URL основной фотографии (относительный — добавить MINIO_URL) |
+| `galleryPhotos` | `List<String>` | Массив URL фотографий галереи (относительные — добавить MINIO_URL) |
+| `type` | `NewsType` | Тип новости (см. enum) |
+| `createdAt` | `LocalDateTime` | Дата создания |
+| `updatedAt` | `LocalDateTime` | Дата последнего обновления |
+
+</details>
+
+### Пример ответа
+```json
+{
+  "uuid": "f6a7b8c9-...",
+  "title": "Открытие нового спортзала",
+  "htmlContent": "<p>Текст новости...</p>",
+  "mainPhotoUrl": "/uploads/abc.jpg",
+  "galleryPhotos": ["/uploads/g1.jpg", "/uploads/g2.jpg"],
+  "type": "SPORT_EVENT",
+  "createdAt": "2026-05-10T12:00:00.000",
+  "updatedAt": "2026-05-11T09:30:00.000"
+}
+```
+
+---
+
 ## Справочник DTO и моделей
 
 ### RoomDto
@@ -411,3 +477,5 @@ UUID: строка в стандартном формате (`xxxxxxxx-xxxx-xxxx
 | 3 | `GET` | `/api/mobile/department` | `?q=` (опционально) | `Flux<DepartmentDto>` | `DepartmentService.search(q)` |
 | 4 | `GET` | `/api/mobile/reference` | — | `Flux<ReferenceInfo>` | `ReferenceService.getAll()` |
 | 5 | `GET` | `/api/mobile/pair/batch` | `from` (обяз.), `to` (опц.) | `Flux<PairDto>` | `PairService.getActivePairsBatch()` |
+| 6 | `GET` | `/api/mobile/news` | `page` (опц.), `size` (опц.) | `Mono<Map>` | `NewsService.findAllPaged()` |
+| 7 | `GET` | `/api/mobile/news/{uuid}` | — | `Mono<NewsDto>` | `NewsService.findById()` |

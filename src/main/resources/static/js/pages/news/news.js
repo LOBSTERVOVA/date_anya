@@ -27,6 +27,16 @@
   let currentPage = 0;
   let totalPages = 0;
   const pageSize = 8;
+  let mainPhotoUrl = null;
+  let galleryPhotos = [];
+  let lightboxIdx = 0;
+
+  // CDN-префикс (из глобальной переменной template.html)
+  function cdnUrl(path) {
+    if (!path) return '';
+    if (path.startsWith('http://') || path.startsWith('https://') || path.startsWith('blob:')) return path;
+    return (window.cdn || '') + path;
+  }
 
   const NEWS_TYPES = [
     { value: 'APP_UPDATE',        label: 'Обновление приложения',  color: '#4A90D9' },
@@ -61,6 +71,15 @@
     return resp.json();
   }
 
+  
+  async function uploadFile(file) {
+    const formData = new FormData();
+    formData.append('file', file);
+    const resp = await fetch('/api/upload', { method: 'POST', body: formData });
+    if (!resp.ok) throw new Error('Ошибка загрузки файла');
+    const data = await resp.json();
+    return data.url || '';
+  }
   async function deleteNewsFromServer(uuid) {
     const resp = await fetch('/api/news/' + uuid, { method: 'DELETE' });
     if (!resp.ok) throw new Error('Ошибка удаления');
@@ -83,6 +102,96 @@
     return div.innerHTML;
   }
 
+
+
+  // ---- Основная фотография ----
+  function resetMainPhoto() {
+    mainPhotoUrl = null;
+    const preview = document.getElementById('main-photo-preview');
+    const placeholder = document.getElementById('main-photo-placeholder');
+    const removeBtn = document.getElementById('main-photo-remove');
+    if (preview) { preview.src = ''; preview.style.display = 'none'; }
+    if (placeholder) placeholder.style.display = '';
+    if (removeBtn) removeBtn.style.display = 'none';
+  }
+
+  function setMainPhotoPreview(url) {
+    mainPhotoUrl = url;
+    const preview = document.getElementById('main-photo-preview');
+    const placeholder = document.getElementById('main-photo-placeholder');
+    const removeBtn = document.getElementById('main-photo-remove');
+    if (preview) { preview.src = cdnUrl(url); preview.style.display = ''; }
+    if (placeholder) placeholder.style.display = 'none';
+    if (removeBtn) removeBtn.style.display = '';
+  }
+
+  async function handleMainPhotoFile(file) {
+    const zone = document.getElementById('main-photo-upload-zone');
+    const placeholder = document.getElementById('main-photo-placeholder');
+    // Показываем спиннер
+    if (placeholder) placeholder.innerHTML = '<span class="spinner-border text-secondary" style="width:2rem;height:2rem;" role="status"></span><p class="mb-0 mt-1" style="font-size:0.85rem;">Загрузка…</p>';
+    try {
+      const url = await uploadFile(file);
+      setMainPhotoPreview(url);
+    } catch (e) {
+      alert('Ошибка загрузки фото: ' + e.message);
+      if (placeholder) placeholder.innerHTML = '<i class="bi bi-cloud-arrow-up" style="font-size: 2rem;"></i><p class="mb-0 mt-1" style="font-size: 0.85rem;">Нажмите или перетащите фото</p>';
+    }
+  }
+
+  // ---- Галерея ----
+  function renderGalleryThumbs() {
+    const container = document.getElementById('gallery-photos-container');
+    if (!container) return;
+    container.innerHTML = galleryPhotos.map((url, i) => `
+      <div class="gallery-thumb-wrap">
+        <img src="${cdnUrl(url)}" class="gallery-thumb" data-idx="${i}" alt="" />
+        <button type="button" class="btn btn-sm btn-danger gallery-thumb-remove" data-idx="${i}" title="Удалить">
+          <i class="bi bi-x"></i>
+        </button>
+      </div>
+    `).join('');
+    container.querySelectorAll('.gallery-thumb').forEach(img => {
+      img.addEventListener('click', () => openLightbox(parseInt(img.getAttribute('data-idx'))));
+    });
+    container.querySelectorAll('.gallery-thumb-remove').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const idx = parseInt(btn.getAttribute('data-idx'));
+        galleryPhotos.splice(idx, 1);
+        renderGalleryThumbs();
+      });
+    });
+  }
+
+  async function handleGalleryFiles(files) {
+    const zone = document.getElementById('gallery-upload-zone');
+    const origHtml = zone ? zone.querySelector('.text-center').innerHTML : '';
+    // Показываем спиннер
+    if (zone) {
+      const tc = zone.querySelector('.text-center');
+      if (tc) tc.innerHTML = '<span class="spinner-border spinner-border-sm text-secondary me-2" role="status"></span>Загрузка…';
+    }
+    for (const file of files) {
+      try {
+        const url = await uploadFile(file);
+        galleryPhotos.push(url);
+        renderGalleryThumbs();
+      } catch (e) {
+        console.error('Ошибка загрузки фото в галерею:', e);
+      }
+    }
+    // Восстанавливаем
+    if (zone) {
+      const tc = zone.querySelector('.text-center');
+      if (tc) tc.innerHTML = origHtml;
+    }
+  }
+
+  function resetGallery() {
+    galleryPhotos = [];
+    renderGalleryThumbs();
+  }
   // ---- Рендер карточек в списке ----
   function newsIconAndGradient(type) {
     const map = {
@@ -140,9 +249,7 @@
               </div>
             </div>
             <div class="col-lg-4 text-lg-end mt-2 mt-lg-0">
-              <div class="news-card-icon d-inline-flex" style="background: ${img.gradient};">
-                <i class="bi ${img.icon} text-white" style="font-size: 2.5rem;"></i>
-              </div>
+              ${n.mainPhotoUrl ? `<img src="${cdnUrl(n.mainPhotoUrl)}" class="news-card-img" alt="${escapeHtml(n.title)}" />` : `<div class="news-card-icon d-inline-flex" style="background: ${img.gradient};"><i class="bi ${img.icon} text-white" style="font-size: 2.5rem;"></i></div>`}
               <div class="mt-2 d-flex gap-2 justify-content-lg-end">
                 <button class="btn btn-sm btn-outline-secondary rounded-pill edit-news-btn" data-uuid="${n.uuid}">
                   <i class="bi bi-pencil me-1"></i>Изменить
@@ -321,6 +428,14 @@
     }
   }
 
+  function resetSaveButton() {
+    const saveBtn = document.getElementById(modalSaveId);
+    if (saveBtn) {
+      saveBtn.disabled = false;
+      saveBtn.innerHTML = '<i class="bi bi-check-lg me-1"></i>Сохранить';
+    }
+  }
+
   function resetModal(isEdit) {
     document.getElementById(editingUuidId).value = '';
     document.getElementById(modalTitleId).textContent = isEdit ? 'Редактирование новости' : 'Создание новости';
@@ -333,6 +448,9 @@
 
   function openCreateModal() {
     resetModal(false);
+    resetMainPhoto();
+    resetGallery();
+    resetSaveButton();
     showNewsModal(true);
     setTimeout(() => bindLivePreview(), 0);
   }
@@ -348,12 +466,22 @@
     if (quill) {
       quill.root.innerHTML = newsItem.htmlContent || '';
     }
+    if (newsItem.mainPhotoUrl) {
+      setMainPhotoPreview(newsItem.mainPhotoUrl);
+    } else {
+      resetMainPhoto();
+    }
+    galleryPhotos = Array.isArray(newsItem.galleryPhotos) ? [...newsItem.galleryPhotos] : [];
+    renderGalleryThumbs();
     showNewsModal(true);
     setTimeout(() => bindLivePreview(), 0);
   }
 
   // ---- Сохранение ----
   async function handleSave() {
+    const saveBtn = document.getElementById(modalSaveId);
+    if (!saveBtn || saveBtn.disabled) return;
+
     const uuid = document.getElementById(editingUuidId).value || null;
     const title = document.getElementById(newsTitleId).value.trim();
     const htmlContent = quill ? quill.root.innerHTML : '';
@@ -363,14 +491,21 @@
       return;
     }
 
-    const payload = { title, htmlContent, type: selectedType };
+    const payload = { title, htmlContent, type: selectedType, mainPhotoUrl: mainPhotoUrl || null, galleryPhotos: galleryPhotos.length ? galleryPhotos : null };
     if (uuid) payload.uuid = uuid;
+
+    const originalHtml = saveBtn.innerHTML;
+    saveBtn.disabled = true;
+    saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Сохранение…';
 
     try {
       await saveNewsToServer(payload);
+      resetSaveButton();
       showNewsModal(false);
       loadNews(currentPage);
     } catch (e) {
+      saveBtn.disabled = false;
+      saveBtn.innerHTML = originalHtml;
       alert('Ошибка: ' + e.message);
     }
   }
@@ -388,7 +523,137 @@
     }
   }
 
+
+
+  // ---- Модалка просмотра ----
+  function showViewModal(show) {
+    const modal = document.getElementById('view-news-modal');
+    if (!modal) return;
+    modal.style.display = show ? 'block' : 'none';
+    modal.classList.toggle('show', !!show);
+    if (show) {
+      modal.style.background = 'rgba(0,0,0,0.55)';
+      modal.style.backdropFilter = 'blur(4px)';
+      modal.style.position = 'fixed';
+      modal.style.top = '0';
+      modal.style.left = '0';
+      modal.style.width = '100%';
+      modal.style.height = '100%';
+      modal.style.zIndex = '1055';
+      document.body.style.overflow = 'hidden';
+    } else {
+      modal.style.background = '';
+      modal.style.backdropFilter = '';
+      document.body.style.overflow = '';
+    }
+  }
+
+  function openViewModal(newsItem) {
+    const ti = typeInfo(newsItem.type);
+    document.getElementById('view-news-type-badge').textContent = ti.label;
+    document.getElementById('view-news-type-badge').style.background = ti.color;
+    document.getElementById('view-news-title').textContent = newsItem.title;
+    document.getElementById('view-news-date').innerHTML = '<i class="bi bi-calendar me-1"></i>' + formatDate(newsItem.updatedAt || newsItem.createdAt);
+    document.getElementById('view-news-content').innerHTML = newsItem.htmlContent || '<p class="text-muted">Нет содержимого</p>';
+
+    const mainPhotoWrap = document.getElementById('view-news-main-photo');
+    const mainPhotoImg = document.getElementById('view-news-main-photo-img');
+    if (newsItem.mainPhotoUrl) {
+      mainPhotoImg.src = cdnUrl(newsItem.mainPhotoUrl);
+      mainPhotoWrap.style.display = '';
+    } else {
+      mainPhotoWrap.style.display = 'none';
+    }
+
+    const galleryWrap = document.getElementById('view-news-gallery');
+    const galleryGrid = document.getElementById('view-news-gallery-grid');
+    if (newsItem.galleryPhotos && newsItem.galleryPhotos.length > 0) {
+      galleryWrap.style.display = '';
+      galleryGrid.innerHTML = newsItem.galleryPhotos.map((url, i) => `
+        <div class="col-6 col-md-4 col-lg-3">
+          <img src="${cdnUrl(url)}" class="img-fluid rounded-3 shadow-sm gallery-view-thumb"
+               data-idx="${i}" data-urls="${newsItem.galleryPhotos.map(u => cdnUrl(u)).join('|||')}"
+               style="width:100%; height:180px; object-fit:cover; cursor:pointer; transition: transform 0.2s;"
+               alt="Фото ${i+1}"
+               onmouseover="this.style.transform='scale(1.03)'"
+               onmouseout="this.style.transform='scale(1)'" />
+        </div>
+      `).join('');
+      galleryGrid.querySelectorAll('.gallery-view-thumb').forEach(img => {
+        img.addEventListener('click', () => {
+          const urls = img.getAttribute('data-urls').split('|||');
+          const idx = parseInt(img.getAttribute('data-idx'));
+          openLightbox(urls, idx);
+        });
+      });
+    } else {
+      galleryWrap.style.display = 'none';
+    }
+
+    showViewModal(true);
+  }
+
+  // ---- Лайтбокс ----
+  let currentLightboxUrls = [];
+
+  function initLightbox() {
+    if (document.getElementById('gallery-lightbox')) return;
+    const lb = document.createElement('div');
+    lb.id = 'gallery-lightbox';
+    lb.innerHTML = `
+      <button class="lightbox-close">&times;</button>
+      <button class="lightbox-prev">&lsaquo;</button>
+      <img src="" alt="" />
+      <button class="lightbox-next">&rsaquo;</button>
+    `;
+    document.body.appendChild(lb);
+
+    const close = () => { lb.style.display = 'none'; document.body.style.overflow = ''; };
+    lb.querySelector('.lightbox-close').addEventListener('click', close);
+    lb.addEventListener('click', (e) => { if (e.target === lb) close(); });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && lb.style.display === 'flex') close();
+      if (lb.style.display === 'flex') {
+        if (e.key === 'ArrowLeft') navigateLightbox(-1);
+        if (e.key === 'ArrowRight') navigateLightbox(1);
+      }
+    });
+    lb.querySelector('.lightbox-prev').addEventListener('click', () => navigateLightbox(-1));
+    lb.querySelector('.lightbox-next').addEventListener('click', () => navigateLightbox(1));
+  }
+
+  function openLightbox(urls, idx) {
+    if (Array.isArray(urls)) {
+      currentLightboxUrls = urls;
+      lightboxIdx = idx;
+    }
+    const lb = document.getElementById('gallery-lightbox');
+    if (!lb || currentLightboxUrls.length === 0) return;
+    lb.querySelector('img').src = currentLightboxUrls[lightboxIdx];
+    lb.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+  }
+
+  function navigateLightbox(delta) {
+    if (currentLightboxUrls.length === 0) return;
+    lightboxIdx = (lightboxIdx + delta + currentLightboxUrls.length) % currentLightboxUrls.length;
+    const lb = document.getElementById('gallery-lightbox');
+    if (lb) lb.querySelector('img').src = currentLightboxUrls[lightboxIdx];
+  }
   function bindCardButtons() {
+    document.querySelectorAll('.news-card').forEach(card => {
+      card.addEventListener('click', async (e) => {
+        if (e.target.closest('button')) return;
+        const uuid = card.getAttribute('data-uuid');
+        try {
+          const resp = await fetch('/api/news/' + uuid);
+          if (!resp.ok) throw new Error('Новость не найдена');
+          openViewModal(await resp.json());
+        } catch (err) { console.error(err); }
+      });
+      card.style.cursor = 'pointer';
+    });
+
     document.querySelectorAll('.edit-news-btn').forEach(btn => {
       btn.addEventListener('click', async () => {
         const uuid = btn.getAttribute('data-uuid');
@@ -441,9 +706,69 @@
       });
     }
 
-    // Escape закрывает модалку
+    // --- Основная фотография ---
+    const mainPhotoZone = document.getElementById('main-photo-upload-zone');
+    const mainPhotoInput = document.getElementById('main-photo-input');
+    const mainPhotoRemove = document.getElementById('main-photo-remove');
+    if (mainPhotoZone && mainPhotoInput) {
+      mainPhotoZone.addEventListener('click', (e) => {
+        if (e.target === mainPhotoRemove || e.target.closest('#main-photo-remove')) return;
+        mainPhotoInput.click();
+      });
+      mainPhotoZone.addEventListener('dragover', (e) => { e.preventDefault(); mainPhotoZone.style.borderColor = '#FB820A'; });
+      mainPhotoZone.addEventListener('dragleave', () => { mainPhotoZone.style.borderColor = '#d0d0d0'; });
+      mainPhotoZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        mainPhotoZone.style.borderColor = '#d0d0d0';
+        const file = e.dataTransfer.files[0];
+        if (file && file.type.startsWith('image/')) handleMainPhotoFile(file);
+      });
+      mainPhotoInput.addEventListener('change', () => {
+        if (mainPhotoInput.files[0]) handleMainPhotoFile(mainPhotoInput.files[0]);
+        mainPhotoInput.value = '';
+      });
+    }
+    if (mainPhotoRemove) {
+      mainPhotoRemove.addEventListener('click', (e) => {
+        e.stopPropagation();
+        resetMainPhoto();
+      });
+    }
+
+    // --- Галерея ---
+    const galleryZone = document.getElementById('gallery-upload-zone');
+    const galleryInput = document.getElementById('gallery-photos-input');
+    if (galleryZone && galleryInput) {
+      galleryZone.addEventListener('click', () => galleryInput.click());
+      galleryZone.addEventListener('dragover', (e) => { e.preventDefault(); galleryZone.style.borderColor = '#FB820A'; });
+      galleryZone.addEventListener('dragleave', () => { galleryZone.style.borderColor = '#d0d0d0'; });
+      galleryZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        galleryZone.style.borderColor = '#d0d0d0';
+        const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
+        if (files.length) handleGalleryFiles(files);
+      });
+      galleryInput.addEventListener('change', () => {
+        if (galleryInput.files.length) handleGalleryFiles(Array.from(galleryInput.files));
+        galleryInput.value = '';
+      });
+    }
+
+    // --- Модалка просмотра ---
+    initLightbox();
+    document.getElementById('view-news-close')?.addEventListener('click', () => showViewModal(false));
+    const viewModalEl = document.getElementById('view-news-modal');
+    if (viewModalEl) {
+      viewModalEl.addEventListener('click', (e) => { if (e.target === viewModalEl) showViewModal(false); });
+    }
+
+    // Escape закрывает модалки
     document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && modal && modal.classList.contains('show')) showNewsModal(false);
+      if (e.key === 'Escape') {
+        const viewModal = document.getElementById('view-news-modal');
+        if (viewModal && viewModal.classList.contains('show')) showViewModal(false);
+        if (modal && modal.classList.contains('show')) showNewsModal(false);
+      }
     });
   }
 

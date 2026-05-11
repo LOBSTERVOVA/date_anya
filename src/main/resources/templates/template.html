@@ -24,6 +24,7 @@
         <script th:inline="javascript">
             let csrf = /*[[${_csrf}]]*/ null;
             let cdn = [[${cdn}]];
+            window.cdn = cdn;
             console.log(cdn)
             let auth = /*[[${auth}]]*/ null;
             let applicationUser = /*[[${applicationUser}]]*/ null;
