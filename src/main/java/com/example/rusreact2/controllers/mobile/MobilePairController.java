@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.RestController;
 import reactor.core.publisher.Flux;
 
 import java.time.LocalDate;
+import java.util.UUID;
 
 @Slf4j
 @RestController
@@ -27,5 +28,14 @@ public class MobilePairController {
     ) {
         log.info("GET /api/mobile/pair/batch?from={}&to={}", from, to);
         return pairService.getActivePairsBatch(from, to);
+    }
+    /// Получить ближайшие пары для преподавателя или группы.
+    /// GET /api/pair/nearest?uuid=...&type=LECTURER|GROUP
+    @GetMapping("/nearest")
+    public Flux<PairDto> getNearestPairs(
+            @RequestParam UUID uuid,
+            @RequestParam String type) {
+        log.info("getNearestPairs: uuid={}, type={}", uuid, type);
+        return pairService.getNearestPairs(uuid, type);
     }
 }

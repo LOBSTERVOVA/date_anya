@@ -12,9 +12,13 @@ import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -590,6 +594,103 @@ public class PairService {
 //                        return Mono.error(new ResponseStatusException(HttpStatus.BAD_REQUEST, "Пара уже утверждена, ее нельзя удалить"));
 //                    }
                     return pairRepository.deleteById(uuid);
+                });
+    }
+
+    // Расписание пар: порядковый номер → (начало, конец), МСК
+    private static final LocalTime[][] PAIR_TIMES = {
+        {LocalTime.of(8, 50), LocalTime.of(10, 20)},   // 1-я пара
+        {LocalTime.of(10, 40), LocalTime.of(12, 10)},  // 2-я пара
+        {LocalTime.of(13, 0), LocalTime.of(14, 30)},   // 3-я пара
+        {LocalTime.of(14, 50), LocalTime.of(16, 20)},  // 4-я пара
+        {LocalTime.of(16, 40), LocalTime.of(18, 10)},  // 5-я пара
+        {LocalTime.of(18, 30), LocalTime.of(20, 0)},   // 6-я пара
+        {LocalTime.of(20, 20), LocalTime.of(21, 50)},  // 7-я пара
+        {LocalTime.of(22, 10), LocalTime.of(23, 40)},  // 8-я пара
+    };
+
+    /// Определяет номер первой непрошедшей пары на сегодня.
+    /// Если текущее время раньше окончания пары N — пара N ещё не прошла.
+    /// Возвращает -1, если все пары уже закончились.
+    private int getFirstUpcomingPairOrder(LocalTime now) {
+        for (int i = 0; i < PAIR_TIMES.length; i++) {
+            if (now.isBefore(PAIR_TIMES[i][1])) {
+                return i + 1; // пары нумеруются с 1
+            }
+        }
+        return -1; // все пары закончились
+    }
+
+    /// Получить ближайшие пары для преподавателя или группы.
+    /// Ищет ближайший день, когда есть пары у сущности (начиная с сегодня).
+    /// Если пары есть сегодня — возвращает только непрошедшие (по текущему времени МСК).
+    /// Если сегодня пар нет или все прошли — возвращает все пары следующего дня с парами.
+    ///
+    /// @param entityUuid UUID преподавателя или группы
+    /// @param entityType "LECTURER" или "GROUP"
+    public Flux<PairDto> getNearestPairs(UUID entityUuid, String entityType) {
+        if (entityUuid == null || entityType == null) return Flux.empty();
+
+        ZoneId msk = ZoneId.of("Europe/Moscow");
+        LocalDate today = LocalDate.now(msk);
+        LocalTime now = LocalTime.now(msk);
+
+        int firstUpcoming = getFirstUpcomingPairOrder(now);
+        log.debug("getNearestPairs: entityUuid={}, type={}, today={}, now={}, firstUpcoming={}",
+                entityUuid, entityType, today, now, firstUpcoming);
+
+        Flux<Pair> pairsFlux;
+        if ("LECTURER".equalsIgnoreCase(entityType)) {
+            pairsFlux = pairRepository.findByLecturerUuidAndDateFrom(entityUuid, today);
+        } else if ("GROUP".equalsIgnoreCase(entityType)) {
+            pairsFlux = pairRepository.findByGroupUuidAndDateFrom(entityUuid, today);
+        } else {
+            return Flux.error(new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "entityType должен быть LECTURER или GROUP"));
+        }
+
+        return pairsFlux
+                .collectList()
+                .flatMapMany(pairs -> {
+                    if (pairs.isEmpty()) return Flux.empty();
+
+                    // Группируем по дате
+                    Map<LocalDate, List<Pair>> byDate = pairs.stream()
+                            .collect(Collectors.groupingBy(Pair::getDate));
+
+                    // Сортируем даты
+                    List<LocalDate> sortedDates = byDate.keySet().stream()
+                            .sorted()
+                            .collect(Collectors.toList());
+
+                    // Ищем ближайший день с непрошедшими парами
+                    for (LocalDate date : sortedDates) {
+                        List<Pair> dayPairs = byDate.get(date);
+
+                        if (date.equals(today)) {
+                            // Сегодня: фильтруем по времени, если ещё есть непрошедшие
+                            if (firstUpcoming == -1) {
+                                // Все пары сегодня закончились — идём к следующему дню
+                                continue;
+                            }
+                            List<Pair> upcoming = dayPairs.stream()
+                                    .filter(p -> p.getPairOrder() >= firstUpcoming)
+                                    .sorted(Comparator.comparingInt(Pair::getPairOrder))
+                                    .collect(Collectors.toList());
+                            if (!upcoming.isEmpty()) {
+                                return Flux.fromIterable(upcoming)
+                                        .flatMap(this::convertPairToPairDto);
+                            }
+                            // На сегодня пар, удовлетворяющих фильтру, нет — идём дальше
+                        } else {
+                            // Будущий день — возвращаем все пары дня
+                            dayPairs.sort(Comparator.comparingInt(Pair::getPairOrder));
+                            return Flux.fromIterable(dayPairs)
+                                    .flatMap(this::convertPairToPairDto);
+                        }
+                    }
+
+                    return Flux.empty();
                 });
     }
 

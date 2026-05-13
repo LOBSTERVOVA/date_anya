@@ -66,4 +66,14 @@ public class PairController {
         return pairService.cloneWeek(request);
     }
 
+    /// Получить ближайшие пары для преподавателя или группы.
+    /// GET /api/pair/nearest?uuid=...&type=LECTURER|GROUP
+    @GetMapping("/nearest")
+    public Flux<PairDto> getNearestPairs(
+            @RequestParam UUID uuid,
+            @RequestParam String type) {
+        log.info("getNearestPairs: uuid={}, type={}", uuid, type);
+        return pairService.getNearestPairs(uuid, type);
+    }
+
 }

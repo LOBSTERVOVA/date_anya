@@ -72,4 +72,30 @@ public interface PairRepository extends R2dbcRepository<Pair, UUID> {
             @Param("lecturerUuids") List<UUID> lecturerUuids,
             @Param("from") LocalDate from,
             @Param("to") LocalDate to);
+
+    /// Ближайшие пары для преподавателя (от указанной даты, включая неактивные)
+    @Query("""
+        SELECT DISTINCT p.uuid, p.subject_uuid, p.pair_order, p.date, p.room_uuid,
+               p.is_active, p.pair_type, p.group_uuids, p.lecturer_uuids
+        FROM pairs p
+        WHERE p.lecturer_uuids && ARRAY[ :lecturerUuid ]::uuid[]
+          AND p.date >= :from
+        ORDER BY p.date ASC, p.pair_order ASC
+        """)
+    Flux<Pair> findByLecturerUuidAndDateFrom(
+            @Param("lecturerUuid") UUID lecturerUuid,
+            @Param("from") LocalDate from);
+
+    /// Ближайшие пары для группы (от указанной даты, включая неактивные)
+    @Query("""
+        SELECT DISTINCT p.uuid, p.subject_uuid, p.pair_order, p.date, p.room_uuid,
+               p.is_active, p.pair_type, p.group_uuids, p.lecturer_uuids
+        FROM pairs p
+        WHERE p.group_uuids && ARRAY[ :groupUuid ]::uuid[]
+          AND p.date >= :from
+        ORDER BY p.date ASC, p.pair_order ASC
+        """)
+    Flux<Pair> findByGroupUuidAndDateFrom(
+            @Param("groupUuid") UUID groupUuid,
+            @Param("from") LocalDate from);
 }
