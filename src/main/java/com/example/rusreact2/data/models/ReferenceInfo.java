@@ -40,6 +40,11 @@ public class ReferenceInfo {
     @Transient
     private List<MonthDayRange> actualDates;
 
+    // Прикреплённые медиафайлы (Excel, PDF, Word, фото, видео)
+    // Managed via ReferenceMediaRepository + MinIO; not a column in reference_info
+    @Transient
+    private List<ReferenceMedia> mediaFiles;
+
     @Column(value = "created_at")
     private LocalDateTime createdAt;
 

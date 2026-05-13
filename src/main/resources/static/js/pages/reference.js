@@ -36,6 +36,10 @@
   // edit state
   let editMode = false;
   let editingUuid = null;
+  // media state
+  let mediaQueue = [];          // File objects to upload after save
+  let existingMedia = [];       // ReferenceMedia objects loaded from server
+  let deletedMediaUuids = [];   // UUIDs to delete on save (for edit mode)
 
   function getCsrfHeaders(){
     // Compatible with global getCsrf() (used elsewhere in project)
@@ -152,6 +156,7 @@
           </div>
           <div class="text-muted small my-2">Обновлено: ${formatDate(it.updatedAt)}</div>
           <div class="ref-html">${it.htmlText || ''}</div>
+          ${renderMediaForItem(it.mediaFiles)}
         </div>
     `).join('');
     // bind edit/delete handlers
@@ -172,6 +177,174 @@
   function formatDate(iso){
     if (!iso) return '';
     try { return new Date(iso).toLocaleString('ru-RU'); } catch { return iso; }
+  }
+
+  /// Рендерит блок медиафайлов для карточки справки в списке
+  function renderMediaForItem(mediaFiles) {
+    if (!mediaFiles || !mediaFiles.length) return '';
+    const cdn = window.cdn || '';
+    const cards = mediaFiles.map(m => {
+      const info = getMediaTypeInfo(m.contentType, m.fileName);
+      const isImage = (m.contentType || '').startsWith('image/');
+      return `
+        <a href="${cdn}${m.storagePath}" target="_blank" class="ref-item-media-card" title="${escapeHtml(m.fileName)}">
+          ${isImage
+            ? `<img src="${cdn}${m.storagePath}" alt="${escapeHtml(m.fileName)}" loading="lazy" />`
+            : `<i class="bi ${info.icon}" style="color:${info.color}; font-size:28px;"></i>`
+          }
+          <span class="ref-item-media-label">${info.label}</span>
+        </a>`;
+    }).join('');
+    return `<div class="ref-item-media mt-3"><div class="d-flex flex-wrap gap-2">${cards}</div></div>`;
+  }
+
+  function formatFileSize(bytes) {
+    if (!bytes || bytes === 0) return '0 Б';
+    const k = 1024;
+    const sizes = ['Б', 'КБ', 'МБ', 'ГБ'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+  }
+
+  /// Определяет тип файла по MIME для иконки и бейджа
+  function getMediaTypeInfo(contentType, fileName) {
+    const mime = (contentType || '').toLowerCase();
+    const name = (fileName || '').toLowerCase();
+    if (mime.startsWith('image/')) return { icon: 'bi-file-image', color: '#0d6efd', label: 'Фото' };
+    if (mime.startsWith('video/')) return { icon: 'bi-file-play', color: '#6f42c1', label: 'Видео' };
+    if (mime.includes('pdf')) return { icon: 'bi-file-pdf', color: '#dc3545', label: 'PDF' };
+    if (mime.includes('spreadsheet') || mime.includes('excel') || name.endsWith('.xlsx') || name.endsWith('.xls'))
+      return { icon: 'bi-file-spreadsheet', color: '#198754', label: 'Excel' };
+    if (mime.includes('word') || mime.includes('document') || name.endsWith('.docx') || name.endsWith('.doc'))
+      return { icon: 'bi-file-word', color: '#0d6efd', label: 'Word' };
+    return { icon: 'bi-file-earmark', color: '#6c757d', label: 'Файл' };
+  }
+
+  /// Рендерит карточку для загруженного с сервера медиафайла (ReferenceMedia)
+  function renderExistingMediaCard(media) {
+    const info = getMediaTypeInfo(media.contentType, media.fileName);
+    const isImage = (media.contentType || '').startsWith('image/');
+    const cdn = window.cdn || '';
+    const previewHtml = isImage
+      ? `<img src="${cdn}${media.storagePath}" alt="${escapeHtml(media.fileName)}" loading="lazy" />`
+      : `<i class="bi ${info.icon} media-icon" style="color:${info.color}"></i>`;
+
+    return `
+      <div class="media-card" data-media-uuid="${media.uuid}">
+        <div class="media-preview">${previewHtml}</div>
+        <span class="media-type-badge">${info.label}</span>
+        <button class="media-remove" title="Удалить файл" data-action="delete-existing">&times;</button>
+        <div class="media-info">
+          <div class="media-name" title="${escapeHtml(media.fileName)}">${escapeHtml(media.fileName)}</div>
+          <div class="media-size">${formatFileSize(media.fileSize)}</div>
+        </div>
+      </div>`;
+  }
+
+  /// Рендерит карточку для нового файла из очереди (File object)
+  function renderQueuedMediaCard(file, index) {
+    const contentType = file.type || '';
+    const info = getMediaTypeInfo(contentType, file.name);
+    const isImage = contentType.startsWith('image/');
+    const previewHtml = isImage
+      ? `<img src="${URL.createObjectURL(file)}" alt="${escapeHtml(file.name)}" />`
+      : `<i class="bi ${info.icon} media-icon" style="color:${info.color}"></i>`;
+
+    return `
+      <div class="media-card" data-queue-index="${index}">
+        <div class="media-preview">${previewHtml}</div>
+        <span class="media-type-badge">${info.label}</span>
+        <button class="media-remove" title="Удалить файл" data-action="remove-queued">&times;</button>
+        <div class="media-info">
+          <div class="media-name" title="${escapeHtml(file.name)}">${escapeHtml(file.name)}</div>
+          <div class="media-size">${formatFileSize(file.size)}</div>
+        </div>
+      </div>`;
+  }
+
+  /// Перерисовывает всю область превью
+  function refreshMediaPreview() {
+    const container = document.getElementById('ref-media-preview');
+    if (!container) return;
+    let html = '';
+    existingMedia.forEach(m => { html += renderExistingMediaCard(m); });
+    mediaQueue.forEach((f, i) => { html += renderQueuedMediaCard(f, i); });
+    container.innerHTML = html;
+    bindMediaCardEvents(container);
+  }
+
+  /// Навешивает обработчики на кнопки удаления в карточках
+  function bindMediaCardEvents(container) {
+    container.querySelectorAll('.media-remove[data-action="delete-existing"]').forEach(btn => {
+      btn.onclick = function(e) {
+        e.stopPropagation();
+        const card = this.closest('.media-card');
+        const uuid = card.getAttribute('data-media-uuid');
+        if (uuid) {
+          deletedMediaUuids.push(uuid);
+          existingMedia = existingMedia.filter(m => m.uuid !== uuid);
+          refreshMediaPreview();
+        }
+      };
+    });
+    container.querySelectorAll('.media-remove[data-action="remove-queued"]').forEach(btn => {
+      btn.onclick = function(e) {
+        e.stopPropagation();
+        const card = this.closest('.media-card');
+        const idx = parseInt(card.getAttribute('data-queue-index'), 10);
+        if (!isNaN(idx) && idx >= 0 && idx < mediaQueue.length) {
+          mediaQueue.splice(idx, 1);
+          refreshMediaPreview();
+        }
+      };
+    });
+  }
+
+  /// Добавляет файлы в очередь
+  function addFilesToQueue(files) {
+    for (const f of files) {
+      // Проверка размера (50 МБ)
+      if (f.size > 50 * 1024 * 1024) {
+        alert(`Файл "${f.name}" слишком большой (${formatFileSize(f.size)}). Максимум 50 МБ.`);
+        continue;
+      }
+      mediaQueue.push(f);
+    }
+    refreshMediaPreview();
+  }
+
+  /// Загружает файлы из очереди на сервер
+  async function uploadQueuedFiles(refUuid) {
+    const headers = getCsrfHeaders();
+    for (const file of mediaQueue) {
+      const formData = new FormData();
+      formData.append('file', file);
+      await fetch(apiBase + '/' + refUuid + '/media', {
+        method: 'POST',
+        headers: headers,
+        body: formData
+      });
+    }
+  }
+
+  /// Удаляет помеченные медиафайлы на сервере
+  async function deleteMarkedMedia(refUuid) {
+    const headers = getCsrfHeaders();
+    for (const mediaUuid of deletedMediaUuids) {
+      await fetch(apiBase + '/' + refUuid + '/media/' + mediaUuid, {
+        method: 'DELETE',
+        headers: headers
+      });
+    }
+  }
+
+  /// Сброс медиа-состояния
+  function resetMediaState() {
+    mediaQueue = [];
+    existingMedia = [];
+    deletedMediaUuids = [];
+    const container = document.getElementById('ref-media-preview');
+    if (container) container.innerHTML = '';
   }
 
   // Modal utilities — use Bootstrap modal API
@@ -218,6 +391,7 @@
     if (list) list.innerHTML = '';
     const delBtn = document.getElementById(modalDeleteId);
     if (delBtn) delBtn.style.display = 'none';
+    resetMediaState();
   }
 
   function openCreate(){
@@ -238,6 +412,7 @@
     // reset and add one empty date range row
     const list = document.getElementById(actualDatesListId);
     if (list) { list.innerHTML = ''; addDateRangeRow(); }
+    resetMediaState();
   }
 
   function saveCreate(){
@@ -262,7 +437,12 @@
       ? fetch(apiBase + '/' + editingUuid, { method: 'PUT', headers, body: JSON.stringify(payload) })
       : fetch(apiBase, { method: 'POST', headers, body: JSON.stringify(payload) });
     req.then(r => { if (!r.ok) throw new Error('save failed: ' + r.status); return r.json(); })
-      .then(() => {
+      .then(async (saved) => {
+        // Загружаем новые файлы и удаляем помеченные
+        if (saved && saved.uuid) {
+          if (deletedMediaUuids.length) await deleteMarkedMedia(saved.uuid);
+          if (mediaQueue.length) await uploadQueuedFiles(saved.uuid);
+        }
         showModal(false);
         clearCreateForm();
         return Promise.all([fetchThemes(), fetchThemeCounts()]);
@@ -276,9 +456,11 @@
   }
 
   function startEdit(uuid){
-    fetch(apiBase + '/' + uuid)
-      .then(r => { if (!r.ok) throw new Error('not found'); return r.json(); })
-      .then(item => {
+    Promise.all([
+      fetch(apiBase + '/' + uuid).then(r => { if (!r.ok) throw new Error('not found'); return r.json(); }),
+      fetch(apiBase + '/' + uuid + '/media').then(r => r.ok ? r.json() : []).catch(() => [])
+    ])
+      .then(([item, mediaList]) => {
         const titleEl = document.getElementById(modalTitleId);
         if (titleEl) titleEl.textContent = 'Редактирование справки';
         const delBtn = document.getElementById(modalDeleteId);
@@ -306,6 +488,12 @@
             addDateRangeRow();
           }
         }
+        // Загружаем существующие медиафайлы
+        existingMedia = Array.isArray(mediaList) ? mediaList : [];
+        mediaQueue = [];
+        deletedMediaUuids = [];
+        refreshMediaPreview();
+
         editMode = true; editingUuid = item.uuid;
         const saveBtn = document.getElementById(modalSaveId);
         if (saveBtn) saveBtn.innerHTML = '<i class="bi bi-check-lg me-1"></i>Обновить';
@@ -459,6 +647,29 @@
     if (openBtn) openBtn.addEventListener('click', openCreate);
     if (saveBtn) saveBtn.addEventListener('click', saveCreate);
     if (addBtn) addBtn.addEventListener('click', () => addDateRangeRow());
+
+    // --- Медиафайлы: dropzone ---
+    const dropzone = document.getElementById('ref-media-dropzone');
+    const fileInput = document.getElementById('ref-media-input');
+    if (dropzone && fileInput) {
+      dropzone.addEventListener('click', () => fileInput.click());
+      fileInput.addEventListener('change', () => {
+        if (fileInput.files && fileInput.files.length) {
+          addFilesToQueue(fileInput.files);
+          fileInput.value = '';
+        }
+      });
+      // Drag & drop
+      dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('drag-over'); });
+      dropzone.addEventListener('dragleave', () => dropzone.classList.remove('drag-over'));
+      dropzone.addEventListener('drop', e => {
+        e.preventDefault();
+        dropzone.classList.remove('drag-over');
+        if (e.dataTransfer.files && e.dataTransfer.files.length) {
+          addFilesToQueue(e.dataTransfer.files);
+        }
+      });
+    }
   }
 
   document.addEventListener('DOMContentLoaded', bindUi);

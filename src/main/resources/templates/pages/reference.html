@@ -69,6 +69,21 @@
               <div id="ref-actualDates-list" class="d-flex flex-column gap-2 mt-2"></div>
               <div class="form-text">Укажите один или несколько периодов (без года — например, «с 1 сентября по 31 мая»).</div>
             </div>
+            <!-- Медиафайлы -->
+            <div class="col-12 mt-4 pt-4 border-top">
+              <label class="form-label fw-semibold small">Прикреплённые файлы</label>
+              <div id="ref-media-dropzone" class="border border-2 border-dashed rounded-4 p-4 text-center bg-light" style="border-color: #dee2e6 !important;">
+                <div class="py-3">
+                  <i class="bi bi-cloud-arrow-up fs-1 text-primary"></i>
+                  <p class="mt-2 mb-1 fw-medium">Перетащите файлы сюда или нажмите для выбора</p>
+                  <p class="text-muted small mb-0">Excel, PDF, Word, фото, видео — до 50 МБ каждый</p>
+                </div>
+                <input type="file" id="ref-media-input" multiple
+                       accept=".xlsx,.xls,.pdf,.doc,.docx,.jpg,.jpeg,.png,.gif,.webp,.svg,.mp4,.webm,.mov,.avi"
+                       style="display:none;" />
+              </div>
+              <div id="ref-media-preview" class="d-flex flex-wrap gap-3 mt-3"></div>
+            </div>
           </div>
         </div>
         <div class="modal-footer border-0 px-4 pb-4">
@@ -94,5 +109,31 @@
   #ref-items-list .ref-item .ref-html img { max-width: 100%; height: auto; border-radius: 8px; }
   #ref-actualDates-list .date-range-row { display: grid; grid-template-columns: 1fr 1fr auto; gap: 8px; align-items: center; }
   @media (max-width: 576px) { #ref-actualDates-list .date-range-row { grid-template-columns: 1fr; } }
+  /* Медиафайлы */
+  #ref-media-dropzone { cursor: pointer; transition: border-color .2s, background .2s; }
+  #ref-media-dropzone:hover, #ref-media-dropzone.drag-over { border-color: #0d6efd !important; background: #f0f7ff; }
+  .media-card { width: 160px; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.08); transition: box-shadow .2s; position: relative; }
+  .media-card:hover { box-shadow: 0 2px 12px rgba(0,0,0,.14); }
+  .media-card .media-preview { height: 110px; display: flex; align-items: center; justify-content: center; background: #f8f9fa; overflow: hidden; }
+  .media-card .media-preview img { width: 100%; height: 100%; object-fit: cover; }
+  .media-card .media-preview video { width: 100%; height: 100%; object-fit: cover; }
+  .media-card .media-preview .media-icon { font-size: 44px; }
+  .media-card .media-info { padding: 6px 10px 8px; }
+  .media-card .media-name { font-size: 12px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .media-card .media-size { font-size: 11px; color: #6c757d; }
+  .media-card .media-remove { position: absolute; top: 6px; right: 6px; width: 24px; height: 24px; border-radius: 50%; background: rgba(220,53,69,.9); color: #fff; border: none; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 14px; line-height: 1; opacity: 0; transition: opacity .2s; }
+  .media-card:hover .media-remove { opacity: 1; }
+  .media-card .media-remove:hover { background: #dc3545; }
+  .media-card .media-type-badge { position: absolute; top: 6px; left: 6px; font-size: 10px; padding: 2px 6px; border-radius: 8px; background: rgba(0,0,0,.55); color: #fff; font-weight: 500; }
+  /* Медиа в карточке справки (список) */
+  .ref-item-media-card {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 6px 12px; border-radius: 8px; background: #f8f9fa;
+    border: 1px solid #e9ecef; text-decoration: none; color: inherit;
+    transition: background .15s, box-shadow .15s; max-width: 200px;
+  }
+  .ref-item-media-card:hover { background: #e9ecef; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+  .ref-item-media-card img { width: 32px; height: 32px; object-fit: cover; border-radius: 4px; }
+  .ref-item-media-label { font-size: 12px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 </style>
 <script type="module" src="/js/pages/reference.js"></script>

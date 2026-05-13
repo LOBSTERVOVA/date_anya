@@ -1,10 +1,12 @@
 package com.example.rusreact2.controllers.rest;
 
 import com.example.rusreact2.data.models.ReferenceInfo;
+import com.example.rusreact2.data.models.ReferenceMedia;
 import com.example.rusreact2.services.ReferenceService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.codec.multipart.FilePart;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
 
@@ -65,5 +67,32 @@ public class ReferenceController {
     public Mono<Void> delete(@PathVariable UUID uuid) {
         log.info("DELETE /api/reference/{}", uuid);
         return refService.delete(uuid);
+    }
+
+    // --- медиафайлы ---
+
+    /// Загрузка медиафайла для существующей справки
+    @PostMapping("/{uuid}/media")
+    @ResponseStatus(HttpStatus.CREATED)
+    public Mono<ReferenceMedia> uploadMedia(@PathVariable UUID uuid,
+                                            @RequestPart("file") FilePart file) {
+        log.info("POST /api/reference/{}/media: fileName={}, contentType={}",
+                uuid, file.filename(), file.headers().getContentType());
+        return refService.uploadMedia(uuid, file);
+    }
+
+    /// Список медиафайлов справки
+    @GetMapping("/{uuid}/media")
+    public Mono<List<ReferenceMedia>> getMedia(@PathVariable UUID uuid) {
+        log.info("GET /api/reference/{}/media", uuid);
+        return refService.getMediaFiles(uuid).collectList();
+    }
+
+    /// Удаление одного медиафайла
+    @DeleteMapping("/{uuid}/media/{mediaUuid}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public Mono<Void> deleteMedia(@PathVariable UUID uuid, @PathVariable UUID mediaUuid) {
+        log.info("DELETE /api/reference/{}/media/{}", uuid, mediaUuid);
+        return refService.deleteMedia(mediaUuid);
     }
 }
