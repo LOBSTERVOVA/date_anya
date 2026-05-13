@@ -705,7 +705,8 @@ public class PairService {
                     if (lecturerUuids.isEmpty()) return Mono.just(0);
                     return pairRepository.findAll()
                             .filter(p -> p.getLecturerUuids() != null
-                                    && p.getLecturerUuids().stream().anyMatch(lecturerUuids::contains))
+                                    && p.getLecturerUuids().stream().anyMatch(lecturerUuids::contains)
+                                    && !p.getIsActive())
                             .flatMap(p -> {
                                 p.setIsActive(true);
                                 return pairRepository.save(p);
