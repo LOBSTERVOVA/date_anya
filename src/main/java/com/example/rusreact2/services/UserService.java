@@ -97,6 +97,19 @@ public class UserService implements ReactiveUserDetailsService {
     }
 
     /**
+     * Самостоятельная смена пароля текущим пользователем.
+     * Проверяет старый пароль, затем сохраняет новый.
+     */
+    public Mono<Void> changeOwnPassword(AppUser currentUser, String oldPassword, String newPassword) {
+        if (!passwordEncoder.matches(oldPassword, currentUser.getPassword())) {
+            return Mono.error(new ResponseStatusException(
+                    HttpStatus.FORBIDDEN, "Неверный старый пароль"));
+        }
+        currentUser.setPassword(passwordEncoder.encode(newPassword));
+        return userRepository.save(currentUser).then();
+    }
+
+    /**
      * Переключить активность пользователя (включить/отключить).
      * Админ не может отключить сам себя.
      */

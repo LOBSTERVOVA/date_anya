@@ -491,6 +491,15 @@ async function init(container) {
     // Вставляем HTML-шаблон расписания в указанный контейнер
     container.innerHTML = SCHEDULE_HTML;
 
+    // Скрываем кнопки управления для пользователей без прав (не ADMIN / MODERATOR / DEPARTMENT_ADMIN)
+    const appUser = window.user;
+    if (!appUser || (appUser.role !== 'ADMIN' && appUser.role !== 'MODERATOR' && appUser.role !== 'DEPARTMENT_ADMIN')) {
+        ['copy-week-next', 'approve-schedule-btn'].forEach(function (id) {
+            var btn = document.getElementById(id);
+            if (btn) btn.classList.add('d-none');
+        });
+    }
+
     // Динамически загружаем rooms.js (содержит renderRoomsTable)
     await new Promise((resolve, reject) => {
         const script = document.createElement('script');
@@ -543,10 +552,18 @@ async function init(container) {
         const filteredDepts = loadedDepartments.filter(dept =>
             dept.name.toLowerCase().includes(search.toLowerCase()) && !selectedDepartments.some(selected => selected.uuid === dept.uuid)
         );
+
+        // DEPARTMENT_ADMIN видит только свою кафедру
+        var filteredForRole = filteredDepts;
+        var u = window.user;
+        if (u && u.role === 'DEPARTMENT_ADMIN' && u.departmentUuid) {
+            filteredForRole = filteredDepts.filter(function (d) { return d.uuid === u.departmentUuid; });
+        }
+
         console.log('populateDepartmentDropdown')
-        console.log(filteredDepts.length)
-        if (filteredDepts.length > 0) {
-            filteredDepts.forEach(dept => {
+        console.log(filteredForRole.length)
+        if (filteredForRole.length > 0) {
+            filteredForRole.forEach(dept => {
                 const $item = $(`
                     <div class="dropdown-item py-2 px-3 text-wrap">${dept.name}</div>
                     <hr class="m-0 p-0">

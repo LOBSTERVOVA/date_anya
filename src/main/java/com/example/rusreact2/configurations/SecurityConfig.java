@@ -79,6 +79,8 @@ public class SecurityConfig {
                          * Здесь — только грубый допуск: ADMIN и MODERATOR имеют доступ к /api/users/**.
                          * Конкретные ограничения (например, модератор не может создать админа) — в UserController.
                          */
+                        // /api/users/me/password — смена своего пароля, доступна всем авторизованным
+                        .pathMatchers(HttpMethod.PUT, "/api/users/me/password").authenticated()
                         // /api/users/** — ADMIN и MODERATOR (детальные проверки в контроллере)
                         .pathMatchers("/api/users/**").hasAnyRole("ADMIN", "MODERATOR")
                         // GET — всем (кроме /api/users/**)

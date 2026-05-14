@@ -170,6 +170,25 @@ public class UserController {
     }
 
     /**
+     * Самостоятельная смена пароля текущим пользователем.
+     * Доступно всем авторизованным.
+     * Тело запроса: { "oldPassword": "...", "newPassword": "..." }
+     */
+    @PutMapping("/me/password")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public Mono<Void> changeOwnPassword(@RequestBody Map<String, String> body,
+                                         @AuthenticationPrincipal AppUser currentUser) {
+        String oldPassword = body.get("oldPassword");
+        String newPassword = body.get("newPassword");
+        if (oldPassword == null || newPassword == null) {
+            return Mono.error(new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "oldPassword и newPassword обязательны"));
+        }
+        log.info("self-service password change for user: {}", currentUser.getUsername());
+        return userService.changeOwnPassword(currentUser, oldPassword, newPassword);
+    }
+
+    /**
      * Переключить активность пользователя (включить/отключить).
      * ADMIN и MODERATOR.
      * Админ не может отключить сам себя.

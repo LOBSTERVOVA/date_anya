@@ -196,6 +196,11 @@
                     </li>
                     <li><hr class="dropdown-divider my-1" /></li>
                     <li>
+                      <button type="button" class="dropdown-item rounded-3 py-2 px-3" id="change-password-btn">
+                        <i class="bi bi-key me-2"></i>Сменить пароль
+                      </button>
+                    </li>
+                    <li>
                       <form action="/logout" method="post" class="m-0">
                         <input type="hidden" name="_csrf" value="${(window.csrf && window.csrf.token) || ''}" />
                         <button type="submit" class="dropdown-item rounded-3 py-2 px-3 text-danger">
@@ -247,6 +252,42 @@
                   <div id="login-error" class="alert alert-danger py-2 small d-none"></div>
                   <button type="submit" class="btn btn-primary w-100 rounded-pill py-2 fw-medium">
                     <i class="bi bi-box-arrow-in-right me-2"></i>Войти
+                  </button>
+                </form>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ====== Модалка смены пароля ====== -->
+        <div class="modal fade" id="change-password-modal" tabindex="-1" aria-hidden="true">
+          <div class="modal-dialog modal-dialog-centered modal-sm">
+            <div class="modal-content border-0 shadow-lg rounded-4">
+              <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-bold">Сменить пароль</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+              </div>
+              <div class="modal-body pt-2">
+                <form id="change-password-form" novalidate>
+                  <div class="mb-3">
+                    <label for="chpwd-old-password" class="form-label small fw-medium">Текущий пароль</label>
+                    <input type="password" class="form-control" id="chpwd-old-password"
+                           placeholder="••••••••" required autocomplete="off" />
+                  </div>
+                  <div class="mb-3">
+                    <label for="chpwd-new-password" class="form-label small fw-medium">Новый пароль</label>
+                    <input type="password" class="form-control" id="chpwd-new-password"
+                           placeholder="••••••••" required autocomplete="new-password" />
+                  </div>
+                  <div class="mb-3">
+                    <label for="chpwd-confirm-password" class="form-label small fw-medium">Подтвердите пароль</label>
+                    <input type="password" class="form-control" id="chpwd-confirm-password"
+                           placeholder="••••••••" required autocomplete="new-password" />
+                  </div>
+                  <div id="chpwd-error" class="alert alert-danger py-2 small d-none"></div>
+                  <div id="chpwd-success" class="alert alert-success py-2 small d-none"></div>
+                  <button type="submit" class="btn btn-primary w-100 rounded-pill py-2 fw-medium" id="chpwd-submit-btn">
+                    <i class="bi bi-check2 me-2"></i>Сохранить
                   </button>
                 </form>
               </div>
@@ -313,6 +354,75 @@
                     }
                 }
             }, 200);
+        }
+
+        // ── Смена пароля ──
+        var chpwdBtn = document.getElementById('change-password-btn');
+        if (chpwdBtn) {
+            chpwdBtn.addEventListener('click', function () {
+                var dropdown = bootstrap.Dropdown.getInstance(document.getElementById('user-avatar-btn'));
+                if (dropdown) dropdown.hide();
+                var chpwdModal = new bootstrap.Modal(document.getElementById('change-password-modal'));
+                chpwdModal.show();
+            });
+        }
+
+        var chpwdForm = document.getElementById('change-password-form');
+        if (chpwdForm) {
+            chpwdForm.addEventListener('submit', async function (e) {
+                e.preventDefault();
+                var errEl = document.getElementById('chpwd-error');
+                var successEl = document.getElementById('chpwd-success');
+                var submitBtn = document.getElementById('chpwd-submit-btn');
+                errEl.classList.add('d-none');
+                successEl.classList.add('d-none');
+
+                var oldPassword = document.getElementById('chpwd-old-password').value;
+                var newPassword = document.getElementById('chpwd-new-password').value;
+                var confirmPassword = document.getElementById('chpwd-confirm-password').value;
+
+                if (!oldPassword || !newPassword || !confirmPassword) {
+                    errEl.textContent = 'Заполните все поля';
+                    errEl.classList.remove('d-none');
+                    return;
+                }
+                if (newPassword !== confirmPassword) {
+                    errEl.textContent = 'Пароли не совпадают';
+                    errEl.classList.remove('d-none');
+                    return;
+                }
+
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Сохранение...';
+
+                try {
+                    var resp = await fetch('/api/users/me/password', {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ oldPassword: oldPassword, newPassword: newPassword })
+                    });
+                    if (resp.ok) {
+                        successEl.textContent = 'Пароль успешно изменён';
+                        successEl.classList.remove('d-none');
+                        chpwdForm.reset();
+                        setTimeout(function () {
+                            var modal = bootstrap.Modal.getInstance(document.getElementById('change-password-modal'));
+                            if (modal) modal.hide();
+                            successEl.classList.add('d-none');
+                        }, 1500);
+                    } else {
+                        var text = await resp.text();
+                        errEl.textContent = text || 'Ошибка при смене пароля';
+                        errEl.classList.remove('d-none');
+                    }
+                } catch (err) {
+                    errEl.textContent = 'Ошибка сети';
+                    errEl.classList.remove('d-none');
+                } finally {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = '<i class="bi bi-check2 me-2"></i>Сохранить';
+                }
+            });
         }
     }
 
