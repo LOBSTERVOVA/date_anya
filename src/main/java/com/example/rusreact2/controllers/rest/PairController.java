@@ -3,15 +3,21 @@ package com.example.rusreact2.controllers.rest;
 import com.example.rusreact2.data.dto.CloneRequest;
 import com.example.rusreact2.data.dto.CloneResponse;
 import com.example.rusreact2.data.dto.PairDto;
+import com.example.rusreact2.data.enums.Role;
+import com.example.rusreact2.data.models.AppUser;
 import com.example.rusreact2.data.models.Pair;
+import com.example.rusreact2.services.LecturerService;
 import com.example.rusreact2.services.PairService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+
 import java.time.LocalDate;
 import java.util.Map;
 import java.util.Set;
@@ -23,6 +29,7 @@ import java.util.UUID;
 @RequestMapping("/api/pair")
 public class PairController {
     private final PairService pairService;
+    private final LecturerService lecturerService;
 
     @GetMapping("/week/batch")
     public Flux<PairDto> getWeekPairsBatch(
@@ -37,10 +44,27 @@ public class PairController {
     /// - если uuid не передан — создание новой пары
     /// - если uuid передан — редактирование существующей
     @PostMapping
-    public Mono<PairDto> savePair(@RequestBody Pair pair) {
+    public Mono<PairDto> savePair(@RequestBody Pair pair, @AuthenticationPrincipal AppUser user) {
         log.info("savePair: uuid={}, date={}, pairOrder={}, subjectUuid={}",
                 pair.getUuid(), pair.getDate(), pair.getPairOrder(), pair.getSubjectUuid());
-        return pairService.savePair(pair);
+        Role role = user.getRole();
+        /// проверка разрешений
+        if (role != Role.ADMIN && role != Role.MODERATOR && role != Role.DEPARTMENT_ADMIN)
+            return Mono.error(new ResponseStatusException(
+                    HttpStatus.FORBIDDEN, "Недостаточно прав для данной операции")
+            );
+        UUID lecturerUuid = pair.getLecturerUuids().stream().findFirst().orElse(null);
+        if (lecturerUuid == null) {
+            return Mono.error(new ResponseStatusException(HttpStatus.BAD_REQUEST, "не выбран преподаватель"));
+        }
+        return lecturerService.findByUuid(lecturerUuid).flatMap(lect -> {
+            if (role == Role.DEPARTMENT_ADMIN && !user.getDepartmentUuid().equals(lect.getDepartmentUuid())) {
+                return Mono.error(new ResponseStatusException(
+                        HttpStatus.FORBIDDEN, "Недостаточно прав для данной операции")
+                );
+            }
+            return pairService.savePair(pair);
+        }).switchIfEmpty(Mono.error(new ResponseStatusException(HttpStatus.BAD_REQUEST, "не выбран преподаватель")));
     }
 
     @DeleteMapping("/{uuid}")

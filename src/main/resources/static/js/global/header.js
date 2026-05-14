@@ -64,6 +64,7 @@
         if (path.startsWith('/schedule')) return 'schedule';
         if (path.startsWith('/workload')) return 'workload';
         if (path.startsWith('/news')) return 'news';
+        if (path.startsWith('/users')) return 'users';
         if (path.startsWith('/departments-lecturers') || path.startsWith('/departments')) return 'departments-lecturers';
         if (path.startsWith('/community')) return 'community';
         if (path.startsWith('/reference')) return 'reference';
@@ -148,6 +149,10 @@
                 <li class="nav-item">
                   ${navLink('/departments-lecturers', 'people', 'Кафедры', active)}
                 </li>
+                ${appUser && (appUser.role === 'ADMIN' || appUser.role === 'MODERATOR') ? `
+                <li class="nav-item">
+                  ${navLink('/users', 'people-fill', 'Пользователи', active)}
+                </li>` : ''}
                 <li class="nav-item dropdown">
                   <a class="nav-link px-3 py-2 rounded-pill fw-medium dropdown-toggle${active === 'community' ? ' active' : ''}"
                      href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
@@ -250,6 +255,12 @@
         </div>`;
     }
 
+    // ========== Чтение CSRF-токена из куки ==========
+    function getCsrfTokenFromCookie() {
+        var match = document.cookie.match(/(?:^|;\s*)XSRF-TOKEN=([^;]*)/);
+        return match ? decodeURIComponent(match[1]) : (window.csrf && window.csrf.token) || '';
+    }
+
     // ========== Инициализация ==========
     function init() {
         var container = document.getElementById('header-container');
@@ -265,6 +276,28 @@
 
         // Рендерим HTML
         container.innerHTML = renderHeader();
+
+        // Перед отправкой формы логина — подставляем актуальный CSRF-токен из куки
+        var loginForm = document.getElementById('login-form');
+        if (loginForm) {
+            loginForm.addEventListener('submit', function () {
+                var csrfField = loginForm.querySelector('input[name="_csrf"]');
+                if (csrfField) {
+                    csrfField.value = getCsrfTokenFromCookie();
+                }
+            });
+        }
+
+        // Перед отправкой формы логаута — тоже обновляем CSRF-токен
+        var logoutForm = document.querySelector('form[action="/logout"]');
+        if (logoutForm) {
+            logoutForm.addEventListener('submit', function () {
+                var csrfField = logoutForm.querySelector('input[name="_csrf"]');
+                if (csrfField) {
+                    csrfField.value = getCsrfTokenFromCookie();
+                }
+            });
+        }
 
         // Показываем модалку логина при ?error в URL
         if (window.location.search.includes('error')) {

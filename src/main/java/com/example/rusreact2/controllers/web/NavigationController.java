@@ -81,6 +81,11 @@ public class NavigationController {
         return buildModel("Новости", "news", "news");
     }
 
+    @GetMapping("/users")
+    public Mono<Rendering> users() {
+        return buildModel("Пользователи", "users", "users");
+    }
+
     private Mono<Rendering> buildModel(String title, String index, String active) {
         return buildModelMap(title, index, active)
                 .map(model -> Rendering.view("template").model(model).build());

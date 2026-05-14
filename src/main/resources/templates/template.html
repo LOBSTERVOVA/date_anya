@@ -26,6 +26,9 @@
             let auth = [[${auth}]];
             let user = [[${user}]];
             let cdn = [[${cdn}]];
+            window.auth = auth;
+            window.user = user;
+            window.cdn = cdn;
             console.log(cdn)
             let applicationUser = /*[[${applicationUser}]]*/ null;
             console.log('auth is: ', auth);
@@ -83,6 +86,10 @@
 
         <div class="container py-4" th:if="${index} == 'news'">
             <main th:insert="~{pages/news/news}"></main>
+        </div>
+
+        <div class="container py-4" th:if="${index} == 'users'">
+            <main th:insert="~{pages/users/users}"></main>
         </div>
 
         <!-- Пока просто в память браузера в будущем будем на сервер отправлять LAST-->

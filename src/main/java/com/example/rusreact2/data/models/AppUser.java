@@ -2,6 +2,7 @@ package com.example.rusreact2.data.models;
 
 import com.example.rusreact2.data.enums.Role;
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.relational.core.mapping.Column;
@@ -29,7 +30,10 @@ public class AppUser implements UserDetails {
     private String patronymic;
     private LocalDate birth;
     private Role role;
+    /** Кафедра, к которой относится пользователь (для DEPARTMENT_ADMIN, LECTURER). */
+    private UUID departmentUuid;
     @Column("is_active")
+    @JsonProperty("isActive")
     private boolean isActive = true;
     private LocalDateTime createdAt = LocalDateTime.now();
 

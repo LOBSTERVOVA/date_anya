@@ -1,0 +1,157 @@
+<main id="users-root" xmlns:th="http://www.thymeleaf.org">
+    <!-- Шапка: заголовок + строка поиска + фильтр + кнопка создать -->
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+        <div>
+            <h1 class="h3 fw-bold mb-0">Пользователи</h1>
+            <p class="text-muted small mb-0" id="users-total">Загрузка...</p>
+        </div>
+        <div class="d-flex flex-wrap align-items-center gap-2">
+            <!-- Поиск -->
+            <div class="input-group input-group-sm" style="max-width:260px;">
+                <span class="input-group-text bg-white border-end-0 rounded-start-pill">
+                    <i class="bi bi-search text-muted"></i>
+                </span>
+                <input type="text" class="form-control border-start-0 rounded-end-pill ps-0" id="users-search"
+                       placeholder="Поиск по ФИО..." autocomplete="off" />
+            </div>
+            <!-- Фильтр по роли -->
+            <select class="form-select form-select-sm rounded-pill" id="users-role-filter" style="max-width:180px;">
+                <option value="">Все роли</option>
+                <option value="ADMIN">Администратор</option>
+                <option value="DEPARTMENT_ADMIN">Админ кафедры</option>
+                <option value="MODERATOR">Модератор</option>
+                <option value="LECTURER">Преподаватель</option>
+                <option value="STUDENT">Студент</option>
+            </select>
+            <!-- Кнопка создать -->
+            <button class="btn btn-primary btn-sm rounded-pill px-3 d-flex align-items-center gap-1" id="users-create-btn">
+                <i class="bi bi-plus-lg"></i>
+                <span>Создать</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Таблица пользователей -->
+    <div class="table-responsive rounded-3 border bg-white shadow-sm" id="users-table-container">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th class="ps-3" style="min-width:200px;">ФИО</th>
+                    <th style="min-width:160px;">Логин</th>
+                    <th style="min-width:130px;">Роль</th>
+                    <th style="min-width:100px;">Кафедра</th>
+                    <th class="text-center" style="width:80px;">Активен</th>
+                    <th class="text-end pe-3" style="width:120px;">Действия</th>
+                </tr>
+            </thead>
+            <tbody id="users-tbody">
+                <!-- JS-рендер -->
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Пагинация -->
+    <div class="d-flex justify-content-between align-items-center mt-3" id="users-pagination">
+        <!-- JS-рендер -->
+    </div>
+
+    <!-- ====== Модалка создания/редактирования пользователя ====== -->
+    <div class="modal fade" id="user-edit-modal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg rounded-4">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title fw-bold" id="user-edit-title">Создать пользователя</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body pt-2">
+                    <input type="hidden" id="user-edit-uuid" />
+                    <div class="mb-3">
+                        <label for="user-edit-lastname" class="form-label small fw-medium">Фамилия <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="user-edit-lastname" placeholder="Иванов" required />
+                    </div>
+                    <div class="mb-3">
+                        <label for="user-edit-firstname" class="form-label small fw-medium">Имя <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="user-edit-firstname" placeholder="Иван" required />
+                    </div>
+                    <div class="mb-3">
+                        <label for="user-edit-patronymic" class="form-label small fw-medium">Отчество</label>
+                        <input type="text" class="form-control" id="user-edit-patronymic" placeholder="Иванович" />
+                    </div>
+                    <div class="mb-3">
+                        <label for="user-edit-username" class="form-label small fw-medium">Логин (email) <span class="text-danger">*</span></label>
+                        <input type="email" class="form-control" id="user-edit-username" placeholder="user@rus.ru" required />
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-6">
+                            <label for="user-edit-role" class="form-label small fw-medium">Роль <span class="text-danger">*</span></label>
+                            <select class="form-select" id="user-edit-role">
+                                <option value="ADMIN">Администратор</option>
+                                <option value="DEPARTMENT_ADMIN">Админ кафедры</option>
+                                <option value="MODERATOR">Модератор</option>
+                                <option value="LECTURER">Преподаватель</option>
+                                <option value="STUDENT">Студент</option>
+                            </select>
+                        </div>
+                        <div class="col-6">
+                            <label for="user-edit-birth" class="form-label small fw-medium">Дата рождения</label>
+                            <input type="date" class="form-control" id="user-edit-birth" />
+                        </div>
+                    </div>
+                    <!-- Выбор кафедры (для DEPARTMENT_ADMIN и LECTURER) — searchable dropdown -->
+                    <div class="mb-3 d-none" id="user-edit-dept-block">
+                        <label for="user-edit-dept-search" class="form-label small fw-medium">Кафедра</label>
+                        <div class="position-relative">
+                            <input type="text" id="user-edit-dept-search" class="form-control"
+                                   placeholder="Начните вводить название кафедры..." autocomplete="off" />
+                            <div id="user-edit-dept-dropdown" class="dropdown-menu w-100 shadow"
+                                 style="max-height: 260px; overflow-y: auto;"></div>
+                        </div>
+                        <input type="hidden" id="user-edit-department" value="" />
+                    </div>
+                    <div class="mb-3" id="user-edit-password-block">
+                        <label for="user-edit-password" class="form-label small fw-medium">Пароль <span class="text-danger">*</span></label>
+                        <div class="input-group">
+                            <input type="password" class="form-control" id="user-edit-password"
+                                   placeholder="Не менее 8 символов" autocomplete="new-password" />
+                            <button class="btn btn-outline-secondary" type="button" id="user-edit-password-toggle"
+                                    title="Показать пароль">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div id="user-edit-error" class="alert alert-danger py-2 small d-none"></div>
+                </div>
+                <div class="modal-footer border-0 pt-0">
+                    <button type="button" class="btn btn-outline-secondary rounded-pill px-4" data-bs-dismiss="modal">Отмена</button>
+                    <button type="button" class="btn btn-primary rounded-pill px-4" id="user-edit-save-btn">Сохранить</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ====== Модалка смены пароля ====== -->
+    <div class="modal fade" id="user-password-modal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-sm">
+            <div class="modal-content border-0 shadow-lg rounded-4">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title fw-bold">Сменить пароль</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body pt-2">
+                    <input type="hidden" id="user-password-uuid" />
+                    <p class="text-muted small" id="user-password-name"></p>
+                    <div class="mb-3">
+                        <label for="user-password-new" class="form-label small fw-medium">Новый пароль</label>
+                        <input type="password" class="form-control" id="user-password-new" placeholder="Не менее 8 символов" minlength="8" required />
+                    </div>
+                    <div id="user-password-error" class="alert alert-danger py-2 small d-none"></div>
+                </div>
+                <div class="modal-footer border-0 pt-0">
+                    <button type="button" class="btn btn-outline-secondary rounded-pill px-4" data-bs-dismiss="modal">Отмена</button>
+                    <button type="button" class="btn btn-primary rounded-pill px-4" id="user-password-save-btn">Сменить</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+<script src="/js/pages/users/users.js"></script>

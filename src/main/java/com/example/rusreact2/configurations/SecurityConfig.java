@@ -73,7 +73,15 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .addFilterAt(authFilter, SecurityWebFiltersOrder.AUTHENTICATION)
                 .authorizeExchange(exchange -> exchange
-                        // GET — всем
+                        /*
+                         * ВАЖНО: тонкие проверки ролей (кто может создавать/редактировать/удалять)
+                         * вынесены в контроллеры и сервисы через @AuthenticationPrincipal.
+                         * Здесь — только грубый допуск: ADMIN и MODERATOR имеют доступ к /api/users/**.
+                         * Конкретные ограничения (например, модератор не может создать админа) — в UserController.
+                         */
+                        // /api/users/** — ADMIN и MODERATOR (детальные проверки в контроллере)
+                        .pathMatchers("/api/users/**").hasAnyRole("ADMIN", "MODERATOR")
+                        // GET — всем (кроме /api/users/**)
                         .pathMatchers(HttpMethod.GET, "/api/**").permitAll()
                         // POST/PUT/DELETE — только ADMIN, MODERATOR
                         .pathMatchers(HttpMethod.POST, "/api/**").hasAnyRole("ADMIN", "MODERATOR")
@@ -133,6 +141,8 @@ public class SecurityConfig {
                                 "/", "/schedule", "/workload", "/news", "/departments-lecturers",
                                 "/community/**", "/reference", "/login", "/logout"
                         ).permitAll()
+                        // /users — только ADMIN и MODERATOR
+                        .pathMatchers(HttpMethod.GET, "/users").hasAnyRole("ADMIN", "MODERATOR")
                         .pathMatchers(HttpMethod.GET, "/**").permitAll()
                         // /login и /logout — разрешены для всех (formLogin/logout обрабатывают их сами)
                         .pathMatchers(HttpMethod.POST, "/login").permitAll()

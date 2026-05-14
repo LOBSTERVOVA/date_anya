@@ -26,6 +26,10 @@ public class LecturerService {
     private final PairRepository pairRepository;
     private final SubjectRepository subjectRepository;
 
+    public Mono<Lecturer> findByUuid(UUID uuid) {
+        return lecturerRepository.findById(uuid);
+    }
+
     public Flux<LecturerDto> search(String q) {
         return lecturerRepository.search(q)
                 .flatMap(lecturer ->
