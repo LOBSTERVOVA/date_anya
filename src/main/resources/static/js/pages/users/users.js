@@ -145,7 +145,12 @@
                     }
                 }
             }
-            var deptName = (dept && dept.name) || (u.departmentUuid ? '—' : '—');
+            var deptName = (dept && dept.name) || '';
+            var deptDisplay = deptName
+                ? (deptName.length > 30
+                    ? '<span title="' + escapeHtml(deptName) + '" style="max-width:220px;" class="text-truncate d-inline-block align-bottom">' + escapeHtml(deptName) + '</span>'
+                    : '<span class="text-muted small">' + escapeHtml(deptName) + '</span>')
+                : '<span class="text-muted small">—</span>';
 
             return '<tr class="' + (!u.isActive ? 'table-secondary opacity-75' : '') + '">' +
                 '<td class="ps-3">' +
@@ -159,7 +164,7 @@
                 '</td>' +
                 '<td><span class="text-muted small">' + escapeHtml(u.username || '') + '</span></td>' +
                 '<td><span class="badge rounded-pill ' + (roleBadges[u.role] || 'bg-secondary') + '">' + (roleLabels[u.role] || u.role) + '</span></td>' +
-                '<td><span class="text-muted small">' + escapeHtml(deptName) + '</span></td>' +
+                '<td>' + deptDisplay + '</td>' +
                 '<td class="text-center">' +
                     '<div class="form-check form-switch d-inline-block">' +
                         '<input class="form-check-input" type="checkbox" role="switch" ' + (u.isActive ? 'checked' : '') +
@@ -211,18 +216,56 @@
 
     // ==== Загрузка списка кафедр ====
     function loadDepartments() {
-        fetch('/api/department')
+        return fetch('/api/department')
             .then(function (r) { return r.json(); })
             .then(function (depts) {
                 loadedDepartments = depts || [];
-                editDeptSelect.innerHTML = '<option value="">— Не выбрана —</option>' +
-                    loadedDepartments.map(function (d) {
-                        return '<option value="' + d.uuid + '">' + escapeHtml(d.name) + '</option>';
-                    }).join('');
+                loadedDepartments.sort(function (a, b) {
+                    return a.name.localeCompare(b.name, 'ru');
+                });
             })
             .catch(function (err) {
                 console.error('Ошибка загрузки кафедр:', err);
             });
+    }
+
+    // ==== Рендер выпадающего списка кафедр ====
+    function renderDeptDropdown(filter) {
+        var dropdown = editDeptDropdown;
+        dropdown.innerHTML = '';
+
+        var q = (filter || '').toLowerCase();
+        var filtered = loadedDepartments.filter(function (d) {
+            return !q || d.name.toLowerCase().indexOf(q) !== -1;
+        });
+
+        if (filtered.length > 0) {
+            filtered.forEach(function (dept) {
+                var item = document.createElement('div');
+                item.className = 'dropdown-item py-2 px-3';
+                item.textContent = dept.name;
+                item.style.cursor = 'pointer';
+                item.addEventListener('mousedown', function (e) {
+                    e.preventDefault(); // чтобы не уводил фокус с поля ввода
+                    editDeptHidden.value = dept.uuid;
+                    editDeptSearch.value = dept.name;
+                    dropdown.classList.remove('show');
+                });
+                dropdown.appendChild(item);
+            });
+        } else {
+            var empty = document.createElement('div');
+            empty.className = 'dropdown-item text-muted py-2 px-3';
+            empty.textContent = 'Кафедры не найдены';
+            dropdown.appendChild(empty);
+        }
+
+        // показать/скрыть дропдаун
+        if (filtered.length > 0 || q) {
+            dropdown.classList.add('show');
+        } else {
+            dropdown.classList.remove('show');
+        }
     }
 
     // ==== Показать/скрыть блок кафедры в зависимости от роли ====
@@ -232,7 +275,8 @@
             editDeptBlock.classList.remove('d-none');
         } else {
             editDeptBlock.classList.add('d-none');
-            editDeptSelect.value = '';
+            editDeptHidden.value = '';
+            editDeptSearch.value = '';
         }
     }
 
@@ -246,7 +290,8 @@
         editUsername.value = '';
         editRole.value = 'STUDENT';
         editBirth.value = '';
-        editDeptSelect.value = '';
+        editDeptHidden.value = '';
+        editDeptSearch.value = '';
         editPassword.value = '';
         editPasswordBlock.classList.remove('d-none');
         editPassword.required = true;
@@ -273,7 +318,14 @@
                 editUsername.disabled = true; // логин не меняется
                 editRole.value = u.role || 'STUDENT';
                 editBirth.value = u.birth || '';
-                editDeptSelect.value = u.departmentUuid || '';
+                editDeptHidden.value = u.departmentUuid || '';
+                // Показать название кафедры в поле поиска
+                if (u.departmentUuid && loadedDepartments.length > 0) {
+                    var dept = loadedDepartments.find(function (d) { return d.uuid === u.departmentUuid; });
+                    editDeptSearch.value = dept ? dept.name : '';
+                } else {
+                    editDeptSearch.value = '';
+                }
                 editPassword.value = '';
                 editPasswordBlock.classList.add('d-none');
                 editPassword.required = false;
@@ -296,7 +348,7 @@
             patronymic: editPatronymic.value.trim(),
             role: editRole.value,
             birth: editBirth.value || null,
-            departmentUuid: editDeptSelect.value || null
+            departmentUuid: editDeptHidden.value || null
         };
 
         if (isCreate) {
@@ -447,10 +499,28 @@
         loadUsers(0);
     });
 
+    // ==== Searchable dropdown для кафедры ====
+    editDeptSearch.addEventListener('input', function () {
+        renderDeptDropdown(this.value);
+    });
+
+    // При фокусе — показать все кафедры
+    editDeptSearch.addEventListener('focus', function () {
+        renderDeptDropdown(this.value);
+    });
+
+    // Клик вне дропдауна — скрыть
+    document.addEventListener('click', function (e) {
+        if (!editDeptSearch.contains(e.target) && !editDeptDropdown.contains(e.target)) {
+            editDeptDropdown.classList.remove('show');
+        }
+    });
+
     // ==== Инициализация ====
     // Сбрасываем автозаполнение браузера (может подставить логин в поле поиска)
     searchInput.value = '';
-    loadDepartments();
-    loadUsers(0);
+    loadDepartments().then(function () {
+        loadUsers(0);
+    });
     } // конец init()
 })();

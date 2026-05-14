@@ -1,7 +1,6 @@
 package com.example.rusreact2.data.models;
 
 import com.example.rusreact2.data.enums.Role;
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 import org.springframework.data.annotation.Id;
@@ -23,7 +22,7 @@ public class AppUser implements UserDetails {
     @Id
     private UUID uuid;
     private String username;
-    @JsonIgnore
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     private String password;
     private String firstName;
     private String lastName;

@@ -51,20 +51,31 @@ public class PairController {
         /// проверка разрешений
         if (role != Role.ADMIN && role != Role.MODERATOR && role != Role.DEPARTMENT_ADMIN)
             return Mono.error(new ResponseStatusException(
-                    HttpStatus.FORBIDDEN, "Недостаточно прав для данной операции")
-            );
-        UUID lecturerUuid = pair.getLecturerUuids().stream().findFirst().orElse(null);
-        if (lecturerUuid == null) {
-            return Mono.error(new ResponseStatusException(HttpStatus.BAD_REQUEST, "не выбран преподаватель"));
-        }
-        return lecturerService.findByUuid(lecturerUuid).flatMap(lect -> {
-            if (role == Role.DEPARTMENT_ADMIN && !user.getDepartmentUuid().equals(lect.getDepartmentUuid())) {
-                return Mono.error(new ResponseStatusException(
-                        HttpStatus.FORBIDDEN, "Недостаточно прав для данной операции")
-                );
-            }
-            return pairService.savePair(pair);
-        }).switchIfEmpty(Mono.error(new ResponseStatusException(HttpStatus.BAD_REQUEST, "не выбран преподаватель")));
+                    HttpStatus.FORBIDDEN, "Недостаточно прав для данной операции"));
+
+        Set<UUID> lecturerUuids = pair.getLecturerUuids();
+        if (lecturerUuids == null || lecturerUuids.isEmpty())
+            return Mono.error(new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Не выбран преподаватель"));
+
+        /// загружаем всех преподавателей пары, проверяем права DEPARTMENT_ADMIN
+        return Flux.fromIterable(lecturerUuids)
+                .flatMap(lecturerService::findByUuid)
+                .collectList()
+                .flatMap(lecturers -> {
+                    if (lecturers.size() != lecturerUuids.size())
+                        return Mono.error(new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                                "Один или несколько преподавателей не найдены"));
+
+                    if (role == Role.DEPARTMENT_ADMIN) {
+                        boolean allSameDept = lecturers.stream()
+                                .allMatch(l -> user.getDepartmentUuid().equals(l.getDepartmentUuid()));
+                        if (!allSameDept)
+                            return Mono.error(new ResponseStatusException(HttpStatus.FORBIDDEN,
+                                    "Вы не имеете прав доступа к этой кафедре"));
+                    }
+                    return pairService.savePair(pair);
+                });
     }
 
     @DeleteMapping("/{uuid}")

@@ -83,10 +83,10 @@ public class SecurityConfig {
                         .pathMatchers("/api/users/**").hasAnyRole("ADMIN", "MODERATOR")
                         // GET — всем (кроме /api/users/**)
                         .pathMatchers(HttpMethod.GET, "/api/**").permitAll()
-                        // POST/PUT/DELETE — только ADMIN, MODERATOR
-                        .pathMatchers(HttpMethod.POST, "/api/**").hasAnyRole("ADMIN", "MODERATOR")
-                        .pathMatchers(HttpMethod.PUT, "/api/**").hasAnyRole("ADMIN", "MODERATOR")
-                        .pathMatchers(HttpMethod.DELETE, "/api/**").hasAnyRole("ADMIN", "MODERATOR")
+                        // POST/PUT/DELETE — любому авторизованному
+                        .pathMatchers(HttpMethod.POST, "/api/**").authenticated()
+                        .pathMatchers(HttpMethod.PUT, "/api/**").authenticated()
+                        .pathMatchers(HttpMethod.DELETE, "/api/**").authenticated()
                         .anyExchange().authenticated()
                 )
                 .formLogin(ServerHttpSecurity.FormLoginSpec::disable)
@@ -147,10 +147,10 @@ public class SecurityConfig {
                         // /login и /logout — разрешены для всех (formLogin/logout обрабатывают их сами)
                         .pathMatchers(HttpMethod.POST, "/login").permitAll()
                         .pathMatchers(HttpMethod.POST, "/logout").permitAll()
-                        // POST/PUT/DELETE на web-страницы — только ADMIN, MODERATOR
-                        .pathMatchers(HttpMethod.POST, "/**").hasAnyRole("ADMIN", "MODERATOR")
-                        .pathMatchers(HttpMethod.PUT, "/**").hasAnyRole("ADMIN", "MODERATOR")
-                        .pathMatchers(HttpMethod.DELETE, "/**").hasAnyRole("ADMIN", "MODERATOR")
+                        // POST/PUT/DELETE на web-страницы — любому авторизованному
+                        .pathMatchers(HttpMethod.POST, "/**").authenticated()
+                        .pathMatchers(HttpMethod.PUT, "/**").authenticated()
+                        .pathMatchers(HttpMethod.DELETE, "/**").authenticated()
                         .anyExchange().authenticated()
                 )
                 .formLogin(login -> login
