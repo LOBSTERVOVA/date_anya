@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.reactive.result.view.Rendering;
 import reactor.core.publisher.Mono;
+
 import java.util.HashMap;
 import java.util.Map;
 
@@ -21,95 +22,75 @@ public class NavigationController {
         return Mono.just("redirect:/schedule");
     }
 
+    @GetMapping("/login")
+    public Mono<String> loginPage() {
+        return Mono.just("redirect:/schedule");
+    }
+
     @GetMapping("/departments-lecturers")
     public Mono<Rendering> departmentsLecturers() {
-        Map<String, Object> model = new HashMap<>();
-        model.put("title", "Кафедры и преподаватели");
-        model.put("index", "departments-lecturers");
-        model.put("active", "departments-lecturers");
-        return Mono.just(Rendering.view("template").model(model).build());
+        return buildModel("Кафедры и преподаватели", "departments-lecturers", "departments-lecturers");
     }
 
     @GetMapping("/departments/{uuid}/edit")
     public Mono<Rendering> departmentEdit(@PathVariable("uuid") String uuid) {
-        Map<String, Object> model = new HashMap<>();
-        model.put("title", "Редактирование кафедры");
-        model.put("index", "departments-edit");
-        model.put("active", "departments-lecturers");
-        model.put("departmentUuid", uuid);
-        return Mono.just(Rendering.view("template").model(model).build());
+        return buildModelMap("Редактирование кафедры", "departments-edit", "departments-lecturers")
+                .map(model -> {
+                    model.put("departmentUuid", uuid);
+                    return Rendering.view("template").model(model).build();
+                });
     }
 
     @GetMapping("/departments/new")
     public Mono<Rendering> departmentNew() {
-        Map<String, Object> model = new HashMap<>();
-        model.put("title", "Новая кафедра");
-        model.put("index", "departments-new");
-        model.put("active", "departments-lecturers");
-        return Mono.just(Rendering.view("template").model(model).build());
+        return buildModel("Новая кафедра", "departments-new", "departments-lecturers");
     }
 
     @GetMapping("/workload")
     public Mono<Rendering> workload() {
-        Map<String, Object> model = new HashMap<>();
-        model.put("title", "Нагрузка-часы преподавателей");
-        model.put("index", "workload");
-        model.put("active", "workload");
-        return Mono.just(Rendering.view("template").model(model).build());
+        return buildModel("Нагрузка-часы преподавателей", "workload", "workload");
     }
 
     @GetMapping("/community/sports-sections")
     public Mono<Rendering> communitySportsSections() {
-        Map<String, Object> model = new HashMap<>();
-        model.put("title", "Спортивные секции");
-        model.put("index", "community-sports-sections");
-        model.put("active", "community");
-        return Mono.just(Rendering.view("template").model(model).build());
+        return buildModel("Спортивные секции", "community-sports-sections", "community");
     }
 
     @GetMapping("/community/science-clubs")
     public Mono<Rendering> communityScienceClubs() {
-        Map<String, Object> model = new HashMap<>();
-        model.put("title", "Научные кружки");
-        model.put("index", "community-science-clubs");
-        model.put("active", "community");
-        return Mono.just(Rendering.view("template").model(model).build());
+        return buildModel("Научные кружки", "community-science-clubs", "community");
     }
 
     @GetMapping("/community/sport-events")
     public Mono<Rendering> communitySportEvents() {
-        Map<String, Object> model = new HashMap<>();
-        model.put("title", "Спортивные мероприятия");
-        model.put("index", "community-sport-events");
-        model.put("active", "community");
-        return Mono.just(Rendering.view("template").model(model).build());
+        return buildModel("Спортивные мероприятия", "community-sport-events", "community");
     }
 
     @GetMapping("/community/canteen-menu")
     public Mono<Rendering> communityCanteenMenu() {
-        Map<String, Object> model = new HashMap<>();
-        model.put("title", "Меню столовой");
-        model.put("index", "community-canteen-menu");
-        model.put("active", "community");
-        return Mono.just(Rendering.view("template").model(model).build());
+        return buildModel("Меню столовой", "community-canteen-menu", "community");
     }
 
     @GetMapping("/reference")
     public Mono<Rendering> reference() {
-        Map<String, Object> model = new HashMap<>();
-        model.put("title", "Справочная информация");
-        model.put("index", "reference");
-        model.put("active", "reference");
-        return Mono.just(Rendering.view("template").model(model).build());
+        return buildModel("Справочная информация", "reference", "reference");
     }
 
     @GetMapping("/news")
     public Mono<Rendering> news() {
-        Map<String, Object> model = new HashMap<>();
-        model.put("title", "Новости");
-        model.put("index", "news");
-        model.put("active", "news");
-        return Mono.just(Rendering.view("template").model(model).build());
+        return buildModel("Новости", "news", "news");
     }
 
+    private Mono<Rendering> buildModel(String title, String index, String active) {
+        return buildModelMap(title, index, active)
+                .map(model -> Rendering.view("template").model(model).build());
+    }
+
+    private Mono<Map<String, Object>> buildModelMap(String title, String index, String active) {
+        Map<String, Object> model = new HashMap<>();
+        model.put("title", title);
+        model.put("index", index);
+        model.put("active", active);
+        return Mono.just(model);
+    }
 }
