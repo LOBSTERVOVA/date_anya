@@ -10,6 +10,10 @@ import {showToast, getWeekStart, getWeekEnd, formatDateDDMM, formatLectFio, form
 import {startOfWeekMonday, endOfWeekSunday, dateIsoFor} from "./date.js";
 import { initImportSchedule } from "./import-schedule.js";
 
+// Хелпер: можно ли редактировать пары (ADMIN, MODERATOR, DEPARTMENT_ADMIN)
+const canEditPairs = () => window.auth === true && window.user &&
+    (window.user.role === 'ADMIN' || window.user.role === 'MODERATOR' || window.user.role === 'DEPARTMENT_ADMIN');
+
 // ==================== HTML TEMPLATE ====================
 const SCHEDULE_HTML = `<section class="container-fluid py-4" id="schedule-page">
   <link rel="stylesheet" href="/css/schedule.css" />
@@ -276,7 +280,7 @@ const SCHEDULE_HTML = `<section class="container-fluid py-4" id="schedule-page">
         <div class="modal-footer">
           <button type="button" class="btn btn-outline-danger me-auto" id="pair-delete" style="display:none;">Удалить</button>
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" id="pair-cancel">Отмена</button>
-          <button type="button" class="btn btn-primary" id="pair-save">Сохранить</button>
+          <button type="button" class="btn btn-primary" id="pair-save"${canEditPairs() ? '' : ' disabled'}>Сохранить</button>
         </div>
       </div>
     </div>
@@ -518,7 +522,7 @@ async function init(container) {
         // Очищаем предупреждение о прошедшем дне при закрытии
         $('#pair-past-warning').addClass('d-none');
         // Сбрасываем блокировку полей
-        $('#pair-save').prop('disabled', false);
+        if (canEditPairs()) $('#pair-save').prop('disabled', false);
         $('#pair-form').find('input, select, textarea, button').prop('disabled', false);
         // Очищаем поле поиска групп
         $('#pair-groups-search').val('');
@@ -989,7 +993,7 @@ async function init(container) {
         const isPast = cellDate < today;
         $('#pair-past-warning').toggleClass('d-none', !isPast);
         // Блокируем кнопку сохранения и форму для прошедших дней
-        $('#pair-save').prop('disabled', isPast);
+        $('#pair-save').prop('disabled', isPast || !canEditPairs());
         $('#pair-form').find('input, select, textarea, button').not('#pair-cancel, #pair-delete, #pair-close, .btn-close')
             .prop('disabled', isPast);
 
