@@ -236,7 +236,9 @@ public class SecurityConfig {
         CorsConfiguration config = new CorsConfiguration();
         config.setAllowedOrigins(Arrays.asList(
                 "http://localhost:8080",
-                "http://localhost:3000"
+                "http://localhost:3000",
+                "http://185.170.144.76:3000",  // ← Добавьте ваш адрес
+                "https://185.170.144.76:3000"  // ← Если используете HTTPS
         ));
         config.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(Arrays.asList("*"));
