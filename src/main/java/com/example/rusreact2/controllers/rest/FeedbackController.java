@@ -93,7 +93,7 @@ public class FeedbackController {
                     .body(Map.of("ok", false, "message", "Ошибка отправки: " + e.getMessage()));
         }
 
-        return ResponseEntity.ok(Map.of("ok", true, "message", "Спасибо! Я получил твой отзыв и скоро отвечу 💌"));
+        return ResponseEntity.ok(Map.of("ok", true, "message", "Ну все, погнали 💌"));
     }
 
     private static String escapeHtml(String s) {
