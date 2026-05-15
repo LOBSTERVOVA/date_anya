@@ -1,13 +1,17 @@
-# Build stage
-FROM eclipse-temurin:17-jdk AS builder
+# Стадия сборки
+FROM eclipse-temurin:17-jdk AS build
 WORKDIR /app
-COPY . .
-RUN chmod +x ./gradlew
-RUN ./gradlew build -x test --no-daemon
+COPY gradlew gradlew.bat ./
+COPY gradle/ gradle/
+COPY build.gradle settings.gradle ./
+# Скачиваем зависимости (кэшируется)
+RUN ./gradlew dependencies --no-daemon || true
+COPY src/ src/
+RUN ./gradlew bootJar --no-daemon
 
-# Runtime stage
+# Стадия запуска
 FROM eclipse-temurin:17-jre
 WORKDIR /app
-EXPOSE 8080
-COPY --from=builder /app/build/libs/*.jar app.jar
+COPY --from=build /app/build/libs/*.jar app.jar
+EXPOSE 143
 ENTRYPOINT ["java", "-jar", "app.jar"]

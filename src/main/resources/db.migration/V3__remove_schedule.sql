@@ -1,7 +1,0 @@
-ALTER TABLE pairs
-    DROP COLUMN IF EXISTS schedule_uuid;
-
-ALTER TABLE pairs
-    ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT false;
-
-DROP TABLE IF EXISTS schedule;
