@@ -4,6 +4,7 @@ WORKDIR /app
 COPY gradlew gradlew.bat ./
 COPY gradle/ gradle/
 COPY build.gradle settings.gradle ./
+RUN chmod +x gradlew
 # Скачиваем зависимости (кэшируется)
 RUN ./gradlew dependencies --no-daemon || true
 COPY src/ src/
