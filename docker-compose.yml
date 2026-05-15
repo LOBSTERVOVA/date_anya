@@ -2,7 +2,7 @@ services:
   app:
     build: .
     ports:
-      - "143:143"
+      - "8085:8085"
     environment:
-      - SERVER_PORT=143
+      - SERVER_PORT=8085
     restart: unless-stopped
