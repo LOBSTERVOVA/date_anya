@@ -575,6 +575,7 @@ async function init(container) {
                 $item.on('click', function (e) {
                     e.preventDefault();
                     selectedDepartments.push(dept);
+                    saveScheduleState();
                     console.log(selectedDepartments);
                     // после нажатия нужно переделать список дропдауна, чтобы в нем не было выбранной кафедры и очистить поле поиска кафедры
                     populateDepartmentDropdown('');
@@ -602,6 +603,7 @@ async function init(container) {
                         $deptEl.fadeOut(300, function() {
                             $(this).remove();  // Удаляем сам элемент после анимации
                         });
+                        saveScheduleState();
                         console.log('Обновленный массив:', selectedDepartments);
                         populateDepartmentDropdown('');
                         renderTable();
@@ -697,6 +699,7 @@ async function init(container) {
 
 
 
+
     // инициализируем отображение текущей недели и переключение недель
     initDates()
     function initDates() {
@@ -713,6 +716,7 @@ async function init(container) {
             weekStart = new Date(weekStart);
             weekStart.setDate(weekStart.getDate() - 7);
             window.weekStart = weekStart;
+            saveScheduleState();
 
             updateDisplay();
             renderTable();
@@ -724,6 +728,7 @@ async function init(container) {
             weekStart = new Date(weekStart);
             weekStart.setDate(weekStart.getDate() + 7);
             window.weekStart = weekStart;
+            saveScheduleState();
 
             updateDisplay();
             renderTable();
@@ -759,6 +764,92 @@ async function init(container) {
 
     // Retry-кнопка для пар
     $('#pairs-retry-btn').off('click').on('click', renderTable);
+
+    // ==================== Сохранение/восстановление состояния расписания ====================
+    const SCHEDULE_STATE_KEY = 'schedule_page_state';
+
+    function formatLocalDate(d) {
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return y + '-' + m + '-' + day;
+    }
+
+    function saveScheduleState() {
+        if (!window.auth) return;
+        try {
+            const state = {
+                weekStart: formatLocalDate(weekStart),
+                departments: selectedDepartments.map(function(d) { return { uuid: d.uuid, name: d.name }; })
+            };
+            localStorage.setItem(SCHEDULE_STATE_KEY, JSON.stringify(state));
+        } catch (e) {
+            console.warn('Не удалось сохранить состояние расписания', e);
+        }
+    }
+
+    function loadScheduleState() {
+        if (!window.auth) return;
+        try {
+            var raw = localStorage.getItem(SCHEDULE_STATE_KEY);
+            if (!raw) return;
+            var state = JSON.parse(raw);
+            if (state.weekStart) {
+                var parts = state.weekStart.split('-');
+                var y = parseInt(parts[0], 10);
+                var m = parseInt(parts[1], 10) - 1;
+                var d = parseInt(parts[2], 10);
+                var restored = new Date(y, m, d);
+                if (!isNaN(restored.getTime())) {
+                    weekStart = restored;
+                    window.weekStart = weekStart;
+                    var weekEnd = getWeekEnd(weekStart);
+                    $('#week-dates').text(formatDateDDMM(weekStart) + ' \u2014 ' + formatDateDDMM(weekEnd));
+                }
+            }
+            if (state.departments && Array.isArray(state.departments) && loadedDepartments.length > 0) {
+                state.departments.forEach(function(saved) {
+                    var found = loadedDepartments.find(function(d) { return d.uuid === saved.uuid; });
+                    if (found && !selectedDepartments.some(function(s) { return s.uuid === found.uuid; })) {
+                        selectedDepartments.push(found);
+                    }
+                });
+                renderExtraDepartments();
+            }
+            if (selectedDepartments.length > 0) {
+                renderTable();
+            }
+        } catch (e) {
+            console.warn('Не удалось восстановить состояние расписания', e);
+        }
+    }
+
+    function renderExtraDepartments() {
+        var $container = $('#additional-departments');
+        if (!$container.length) return;
+        $container.empty();
+        selectedDepartments.forEach(function(dept) {
+            var $deptEl = $(
+                '<div class="d-flex align-items-center gap-2 p-2 border rounded bg-light" id="dept-' + dept.uuid + '">' +
+                    '<span class="fw-medium">' + dept.name + '</span>' +
+                    '<button class="btn btn-sm btn-outline-danger remove-dept-btn ms-auto" data-dept-id="dept-' + dept.uuid + '">' +
+                        '<i class="bi bi-x"></i>' +
+                    '</button>' +
+                '</div>'
+            );
+            $deptEl.find('.remove-dept-btn').on('click', function() {
+                selectedDepartments = selectedDepartments.filter(function(item) { return item.uuid !== dept.uuid; });
+                $deptEl.fadeOut(300, function() { $(this).remove(); });
+                populateDepartmentDropdown('');
+                saveScheduleState();
+                renderTable();
+            });
+            $container.append($deptEl);
+        });
+    }
+
+    // Восстанавливаем сохранённое состояние (кафедры + неделя)
+    loadScheduleState();
 
     async function renderTable() {
         window.renderTable = renderTable;
